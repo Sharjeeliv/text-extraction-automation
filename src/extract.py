@@ -8,13 +8,14 @@ import concurrent.futures
 from collections import Counter
 from typing import List
 from multiprocessing import Manager
+from os.path import join as pjoin
 
 # Third Party
 import pandas as pd
 
 # Local
 from utils import time_execution, convert_to_series, metrics
-from tests import *
+from tests import overlap_similarity
 # from parse import get_files, get_raw_files
 from parse import get_files
 from params import PATH, DEFAULT, DELIM
@@ -37,7 +38,8 @@ def extract_titles(file_path: str, delimiter: str = '\n'):
     # Input validation and Guard Clause
     text = get_text(file_path)
     if text is None: return
-    keyword_dataset =  pd.read_json(f'{PATH['METRICS']}/title_keywords.json')
+    input_path = pjoin(PATH['METRICS'], 'title_keywords.json')
+    keyword_dataset =  pd.read_json(input_path)
 
     # Slices Document into "coarse titles"
     titles, idx = [], []
@@ -142,8 +144,7 @@ def get_title(section: str, dataset: pd.DataFrame) -> str | None:
 # *********************
 def extractor(file: str, test: bool=False, label_suffix: str='') -> float | None:
     try:
-        file_path = f"{PATH['TEXTS']}/{file}"
-        
+        file_path = pjoin(PATH['TEXTS'], file)
         candidate_titles = extract_titles(file_path)
         if not candidate_titles: return None
     
@@ -159,9 +160,8 @@ def extractor(file: str, test: bool=False, label_suffix: str='') -> float | None
 
         # Write the extracted section to a file, and read test for comparison
         name = f'{file[:-4]}{label_suffix}.txt'
-        label = f'{PATH["LABELS"]}/{name}'
-        pred = f'{PATH["RESULTS"]}/pred/{name}'
-
+        label = pjoin(PATH['LABELS'], name)
+        pred = pjoin(PATH['RESULTS'], name)
         open(pred, 'w').write(section)
 
         if not test: return
@@ -183,15 +183,19 @@ def extractor(file: str, test: bool=False, label_suffix: str='') -> float | None
 # *********************
 # MAIN FUNCTION
 # *********************
+args: argparse.Namespace
+
+# extraction_entry(texts_path, exclude_files, extensions, suffix)
+
 @time_execution
-def extraction_entry(args: argparse.Namespace):
+def extraction_entry(texts_path, exclude_files, extensions, suffix, log=False, test=True):
 
     # Setup and retrieve arguments
     global LOG_MODE
-    LOG_MODE = args.log
+    LOG_MODE = log
 
     # Parse, prepare and retrieve files
-    files = get_files(PATH["TEXTS"], exclude=args.exclude, ext=['.txt'])
+    files = get_files(texts_path, exclude=exclude_files, ext=['.txt'])
     # print(f"Files: {len(files)}")
 
     # Extract, save, and compute similarity
@@ -199,11 +203,11 @@ def extraction_entry(args: argparse.Namespace):
     result_scores = manager.list()
     with concurrent.futures.ThreadPoolExecutor() as executor:
         # Errors are returned as None
-        results = executor.map(extractor, files, [args.test]*len(files), [args.label_suffix]*len(files))
+        results = executor.map(extractor, files, [test]*len(files), [suffix]*len(files))
         result_scores.extend([r for r in results if r is not None and r != -100.00])
 
     # Convert to Series and compute metrics
-    if not args.test: return
+    if not test: return
     print("Files: ", len(result_scores))
     result_scores = convert_to_series(result_scores)
     metrics(result_scores)

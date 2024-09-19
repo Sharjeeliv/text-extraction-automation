@@ -15,6 +15,7 @@ def get_args():
     parser.add_argument('-e', '--exclude', nargs='+', default=[], help="List of files to exclude")
     parser.add_argument('-x', '--ext', nargs='+', default=[], help="List of file extensions to include")
     parser.add_argument('-l', '--labels', type=str, help="Path to directory containing labels")
+    parser.add_argument('-o', '--output', type=str, help="Path to directory for results")
     parser.add_argument('-s', '--label_suffix', type=str, default='', help="Label file suffixes")
     
     parser.add_argument('--analyze', action='store_true', help="Rerun analysis layer")
@@ -24,19 +25,32 @@ def get_args():
 
 def init_paths(args):
     PATH["LABELS"] = args.labels
+    PATH["RESULTS"] = args.output
+    PATH['TEXTS'] = args.texts
 
 
-def print_info():
-    print("Text Extractor Automation")
-    print("Will use built-in folders for storing, root is at: ", PATH["ROOT"])
-    print("Assumptions: Each file has a unique name")
+# def print_info():
+#     print("Text Extractor Automation")
+#     print("Will use built-in folders for storing, root is at: ", PATH["ROOT"])
+#     print("Assumptions: Each file has a unique name")
 
 # *********************
 # MAIN FUNCTION
 # *********************
 def main():
-    print_info()
+
+    # Validate directories
     args = get_args()
+    if not args.texts or not os.path.exists(args.texts):
+        print("Texts directory not found!")
+        exit()
+    if not args.labels or not os.path.exists(args.labels):
+        print("Labels directory not found!")
+        exit()
+    if not args.output or not os.path.exists(args.output):
+        print("Output directory not found!")
+        exit()
+
     init_paths(args)
     metrics_empty = not any(f in os.listdir(PATH["METRICS"]) for 
                             f in ("roi_dataset.csv", "title_keywords.json"))

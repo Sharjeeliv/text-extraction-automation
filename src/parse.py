@@ -6,7 +6,7 @@ from concurrent.futures import ProcessPoolExecutor
 import re
 
 # HTML Parsing
-from lxml.html import fromstring
+from selectolax.parser import HTMLParser
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -25,20 +25,53 @@ from utils import time_execution
 options = Options()
 options.add_argument('--headless=new')
 
+# Regex
+rm_graphic = r"<DOCUMENT>\n?<TYPE>GRAPHIC(.*\n)*?<\/DOCUMENT>"
+rm_table = r"<table(.|\n)*?</table>"
+rm_extranl = r"\n{3,}"
+rm_empty = r"^\s*$"
+rm_spaces = r" {2,}"
 
 # *********************
 # HTML-PARSE FUNCTIONS
 # *********************
+# def parse_html(file_path: str):
+#     driver_cache_manager = DriverCacheManager(root_dir=PATH['DRIVER'])
+#     service = Service(ChromeDriverManager(cache_manager=driver_cache_manager).install())
+#     driver = webdriver.Chrome(service=service, options=options)
+#     try:
+#         driver.get(f'file://{file_path}')
+#         extracted_text = driver.find_element(By.TAG_NAME, 'body').text
+#     finally:
+#         driver.close()
+#         return extracted_text
+
 def parse_html(file_path: str):
-    driver_cache_manager = DriverCacheManager(root_dir=PATH['DRIVER'])
-    service = Service(ChromeDriverManager(cache_manager=driver_cache_manager).install())
-    driver = webdriver.Chrome(service=service, options=options)
-    try:
-        driver.get(f'file://{file_path}')
-        extracted_text = driver.find_element(By.TAG_NAME, 'body').text
-    finally:
-        driver.close()
-        return extracted_text
+    output = ""
+    file_path = fix_html_extension(file_path)
+    text = open(file_path, 'r').read()
+
+    # Pro-processing: remove noise inducing elements
+    text = re.sub(rm_graphic, "", text)
+    text = re.sub(rm_table, "", text, flags=re.IGNORECASE)
+
+    # Process document text nodes (p)
+    html = HTMLParser(text).root.traverse()
+    for node in html:
+        if node.tag.lower() != "p": continue
+        # Remove same paragraph breaks
+        temp = node.text().replace("\n", " ")
+        # Use unicode, e.g., \xa0 is the Unicode character for &nbsp;
+        temp = temp.replace("\xa0", "\n")
+        temp = temp.replace("\u2003", "  ")
+        if len(temp) > 2: temp = temp.replace("\n", " ")
+        output += temp.strip() + "\n"
+
+    # Post-processing: remove extra white spaces
+    output = re.sub(rm_extranl, "\n\n", output)
+    output = re.sub(rm_empty, "", output, flags=re.MULTILINE)
+    output = re.sub(rm_spaces, " ", output)
+    return output
 
 
 def is_html(file_path: str):

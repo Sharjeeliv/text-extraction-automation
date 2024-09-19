@@ -3,9 +3,16 @@ import os
 from collections import Counter
 import json
 
+from os.path import join as pjoin
+
+
 # Third Party
 import pandas as pd
 import spacy
+
+import nltk
+
+import sys
 
 # Local
 from params import DELIM, PATH, DEFAULT
@@ -13,7 +20,35 @@ from params import DELIM, PATH, DEFAULT
 # Built-in rules
 BLACKLIST_WORDS = {"continue", "cont.", "continued"}
 KEYWORD_POS_TAGS = {'NOUN', 'PROPN', 'VERB', 'ADJ', 'ADV'}
-nlp = spacy.load('en_core_web_sm')
+
+# def get_data_folder():
+#     # path of your data in same folder of main .py or added using --add-data
+#     if getattr(sys, 'frozen', False):
+#         data_folder_path = sys._MEIPASS
+#     else:
+#         data_folder_path = os.path.dirname(
+#             os.path.abspath(sys.modules['__main__'].__file__)
+#         )
+#     return data_folder_path
+
+
+from pathlib import Path
+
+# bundle_dir = Path(__file__).parent
+# corpus_path = f"{get_data_folder()}/en_core_web_sm"
+# nlp = spacy.load(corpus_path)
+
+# try:
+#     nlp = spacy.load("en_core_web_sm")
+# except OSError:
+#     # this wont work because the user might not have python
+#     os.system("python -m spacy download en_core_web_sm")
+#     nlp = spacy.load("en_core_web_sm")
+
+
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
+
 
 # *********************
 # HELPER FUNCTIONS
@@ -24,8 +59,10 @@ def gen_dataset():
              and f.endswith('Extracted.txt')]
     raw = []
     for file in files:
-        with open(f"{PATH['LABELS']}/{file}", 'r') as f:
+        input_path = pjoin(PATH['LABELS'], file)
+        with open(input_path) as f:
             title = f.readline().lower().strip()
+            if title == "": continue
             text = f.read().lower().strip().replace('"', "'")
             
             end = text.strip().split("\n")[-1]
@@ -33,7 +70,7 @@ def gen_dataset():
             raw.append([file, title, end, text])
 
     data = pd.DataFrame(raw, columns=['File', 'Start_Title', 'End_Title', 'Text'])
-    data.to_csv(f"{PATH['METRICS']}/roi_dataset.csv", index=False)
+    data.to_csv(pjoin(PATH['METRICS'], 'roi_dataset.csv'), index=False)
     return data
 
  # https://saturncloud.io/blog/how-to-detect-and-exclude-outliers-in-a-pandas-dataframe/#:~:text=Interquartile%20Range%20(IQR),-The%20interquartile%20range&text=Any%20data%20point%20outside%20the,75th%20percentiles%20of%20the%20dataset.
@@ -67,6 +104,7 @@ def tally_keywords(df: pd.DataFrame):
         n_words.append(len(title.split(DELIM['WORD'])))
         # Tally Keywords & Counter filters
         counts = Counter()
+
         for token in nlp(title):
             if token.pos_ not in KEYWORD_POS_TAGS: continue
             if token.text in {".", ",", ":", ";", "-"}: continue
@@ -86,7 +124,8 @@ def score_keywords(tallies: pd.DataFrame):
     keywords_scores = {word: [count, round(count/median_n_words, 2)] 
                    for word, count in total_keyword_tallies.items() if count > 1}
 
-    with open(f'{PATH["METRICS"]}/title_keywords.json', 'w') as f: json.dump(keywords_scores, f)
+    input_path = pjoin(PATH['METRICS'], 'title_keywords.json')
+    with open(input_path, 'w') as f: json.dump(keywords_scores, f)
     return keywords_scores
 
 
@@ -107,7 +146,7 @@ def compute_constants(dataset, tallies):
 # *********************
 # ENTRY FUNCTIONS
 # *********************
-def analysis_entry():
+def analysis_entry( ):
     dataset = gen_dataset()
     tallies = tally_keywords(dataset)
     compute_constants(dataset, tallies)

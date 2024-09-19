@@ -1,16 +1,25 @@
 import os
+import sys
 from pathlib import Path
 
-# Uses the current file path to dynamically get the root path
-_ROOT_PATH = Path(os.path.abspath(__file__)).parent.parent
+def get_root_path():
+    # PyInstaller executable, use default temp folder
+    # Otherwise, use the current file path
+    if getattr(sys, 'frozen', False): return Path(sys._MEIPASS)
+    else: return Path(os.path.abspath(__file__)).parent.parent
 
+# Uses the current file path to dynamically get the root path
+# _ROOT_PATH = Path(os.path.abspath(__file__)).parent.parent
+_ROOT_PATH = get_root_path()
+
+# Define the paths using pathlib to handle cross-platform path structures
 PATH = {
-    "ROOT":     f"{_ROOT_PATH}",
-    "TEXTS":    f"{_ROOT_PATH / 'data/texts/'}",
-    "DRIVER":   f"{_ROOT_PATH / 'data/driver/'}",
-    "METRICS":  f"{_ROOT_PATH / 'data/metrics/'}",
-    "RESULTS":  f"{_ROOT_PATH / 'data/results/'}",
-    "LABELS":   f"{_ROOT_PATH / 'data/results/label/'}",
+    "ROOT":     _ROOT_PATH,
+    "TEXTS":    _ROOT_PATH / 'data' / 'texts',
+    "RESULTS":  _ROOT_PATH / 'data' / 'results',
+    "LABELS":   _ROOT_PATH / 'data' / 'results' / 'label',
+    "DRIVER":   _ROOT_PATH / 'data' / 'driver',
+    "METRICS":  _ROOT_PATH / 'data' / 'metrics',
 }
 
 # Change the default parameters for each dataset

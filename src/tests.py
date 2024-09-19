@@ -1,4 +1,3 @@
-import spacy
 import re
 
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -6,7 +5,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 
 R_SENTENCE = r"^(\w+\s\w+\s\w+\s?)((\w+|-)\s?)*"
-nlp = spacy.load("en_core_web_sm")
 
 # *********************
 # HELPER FUNCTIONS
