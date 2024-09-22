@@ -12,15 +12,50 @@ from selectolax.parser import HTMLParser
 # *********************
 N_TOP_HTML_CHARS =  2325
 
+# Regex
+rm_graphic = r"<DOCUMENT>\n?<TYPE>GRAPHIC(.*\n)*?<\/DOCUMENT>"
+rm_table = r"<table(.|\n)*?</table>"
+rm_extranl = r"\n{3,}"
+rm_empty = r"^\s*$"
+rm_spaces = r" {2,}"
+
 # *********************
 # PARSE FUNCTIONS
 # *********************
 def parse_html(file_path) -> str:
-    with open(file_path, 'r') as f:
-        text = f.read()
-        output = ""
-        for node in HTMLParser(text).root.traverse():
-            print(node.tag)
+    file_path = rename_file_extension(file_path, '.txt')
+    print(f"Processing: {file_path.split('/')[-1]}")
+
+    output = ""
+    text = open(file_path, 'r').read()
+
+    # Preprocess the html
+    text = re.sub(rm_graphic, "", text)
+    text = re.sub(rm_table, "", text, flags=re.IGNORECASE)
+
+    # HTML Parsing
+    html = HTMLParser(text)
+    html.unwrap_tags(['font', 'i', 'sub', 'b'])
+    html = html.root.traverse()
+    for node in html:
+        tag = node.tag.lower()
+        # Guard clause
+        if tag not in {"p", "div"}: continue
+        # Extract text based on tag
+        if tag == "p": text = node.text()
+        if tag == "div": text = node.text(deep=False)
+        # Remove same paragraph breaks
+        temp = text.replace("\n", " ")
+        # Use unicode, e.g., \xa0 is the Unicode character for &nbsp;
+        temp = temp.replace("\xa0", "\n")
+        temp = temp.replace("\u2003", "  ")
+        if len(temp) > 2: temp = temp.replace("\n", " ")
+        output += temp.strip() + "\n"
+    
+    # Postprocess the output text
+    output = re.sub(rm_extranl, "\n\n", output)
+    output = re.sub(rm_empty, "", output, flags=re.MULTILINE)
+    output = re.sub(rm_spaces, " ", output)
 
     return output
 
@@ -46,6 +81,13 @@ def parse_files(files, output_folder):
 # *********************
 # HELPER FUNCTIONS
 # *********************
+def rename_file_extension(file_path, ext):
+    ext = ext if ext.startswith('.') else '.' + ext
+    new_path = os.path.splitext(file_path)[0] + ext
+    os.rename(file_path, new_path)
+    return new_path
+
+
 def time_execution(func):
     def wrapper(*args, **kwargs):
         start_time = time.time()
@@ -76,10 +118,10 @@ def get_files(path, exts):
 @time_execution
 def main(input_folder, output_folder):
     files = get_files(input_folder, ['.txt', '.html', '.htm'])
-    parse_files(files[:2], output_folder)
+    parse_files(files, output_folder)
 
 
 if __name__ == "__main__":
-    input_folder = "/Users/sharjeelmustafa/Desktop/inputs"
-    output_folder = "/Users/sharjeelmustafa/Desktop/outputs"
+    input_folder = "/Users/sharjeelmustafa/Desktop/RA24_Testing/inputs"
+    output_folder = "/Users/sharjeelmustafa/Desktop/RA24_Testing/outputs"
     main(input_folder, output_folder)
