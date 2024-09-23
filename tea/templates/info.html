@@ -1,0 +1,40 @@
+{% extends 'base.html' %} 
+{% block title %} {{ title }} {% endblock %}
+{% block content %} 
+<div class="container mb-5" style="max-width: 800px;">
+    <h1 class="fw-bold">Information</h1>
+    <hr>
+
+    <h2 class="fw-bold">About</h2>
+    <p>The Text Extraction Automation (TEA), is designed for providing an scalable and automated 
+        approach to large-scale text analysis, particularly in downstream keyword analysis of sections 
+        of interest.
+
+        The program is fully open source and available on <a href="https://github.com/Sharjeeliv/text-extraction-automation">GitHub</a> 
+        where the user can adjust the program to their specific needs and experiment with the various 
+        parameters. The current release is a beta version and lacks negative reinforcement, i.e., it can
+        not identify the absence of a section of interest.
+    
+    </p>
+
+
+    <h2 class="fw-bold">Usage</h2>
+    <p>The web-interface of the program is greatly simplified. The user is required to provide the 
+        following information:
+        <ul>
+            <li>Texts Folder: A folder containing text files</li>
+            <li>Labels Folder: A folder containing label files</li>
+            <li>Label Word: A keyword to identify the label files</li>
+            <li>Extensions: A list of allowed extensions, separated by spaces</li>
+        </ul>
+        
+        Presently, the only extensions supported are .txt files and sec-html, for the specific 
+        use case of extracting informations from sec financial texts. This will be expanded in a
+        future release. Ensure that the label files are named with the keyword provided in the 
+        arguments exactly as it appears in the label word field. Moreover, it is assumed that 
+        each text file has a unique name and that the label files are named with the same name 
+        as the text files.
+    </p>
+</div>
+
+{% endblock %} 

@@ -16,7 +16,6 @@ import pandas as pd
 # Local
 from utils import time_execution, convert_to_series, metrics
 from tests import overlap_similarity
-# from parse import get_files, get_raw_files
 from parse import get_files
 from params import PATH, DEFAULT, DELIM
 
@@ -142,7 +141,7 @@ def get_title(section: str, dataset: pd.DataFrame) -> str | None:
 # *********************
 # ENTRY FUNCTIONS
 # *********************
-def extractor(file: str, test: bool=False, label_suffix: str='') -> float | None:
+def extractor(file: str, test: bool=False, label: str='') -> float | None:
     try:
         file_path = pjoin(PATH['TEXTS'], file)
         candidate_titles = extract_titles(file_path)
@@ -159,14 +158,14 @@ def extractor(file: str, test: bool=False, label_suffix: str='') -> float | None
         section = extract_section(file_path, ct, unit='line')
 
         # Write the extracted section to a file, and read test for comparison
-        name = f'{file[:-4]}{label_suffix}.txt'
+        name = f'{file[:-4]}{label}.txt'
         label = pjoin(PATH['LABELS'], name)
         pred = pjoin(PATH['RESULTS'], name)
         open(pred, 'w').write(section)
 
         if not test: return
-        # Save the label if it does not exist to other directory
-        # if not os.path.exists(save): open(save, 'w').write(open(label, 'r').read())
+        # If the label does not exist, return
+        if not os.path.exists(label): return
 
         # Compute and print similarity
         similarity = overlap_similarity(label, pred)
@@ -185,17 +184,15 @@ def extractor(file: str, test: bool=False, label_suffix: str='') -> float | None
 # *********************
 args: argparse.Namespace
 
-# extraction_entry(texts_path, exclude_files, extensions, suffix)
-
 @time_execution
-def extraction_entry(texts_path, exclude_files, extensions, suffix, log=False, test=True):
+def extraction_entry(texts_path, label, ext=['.txt'], log=False, test=True):
 
     # Setup and retrieve arguments
     global LOG_MODE
     LOG_MODE = log
 
     # Parse, prepare and retrieve files
-    files = get_files(texts_path, exclude=exclude_files, ext=['.txt'])
+    files = get_files(texts_path, label=label, ext=ext)
     # print(f"Files: {len(files)}")
 
     # Extract, save, and compute similarity
@@ -203,7 +200,7 @@ def extraction_entry(texts_path, exclude_files, extensions, suffix, log=False, t
     result_scores = manager.list()
     with concurrent.futures.ThreadPoolExecutor() as executor:
         # Errors are returned as None
-        results = executor.map(extractor, files, [test]*len(files), [suffix]*len(files))
+        results = executor.map(extractor, files, [test]*len(files), [label]*len(files))
         result_scores.extend([r for r in results if r is not None and r != -100.00])
 
     # Convert to Series and compute metrics

@@ -2,7 +2,7 @@ import argparse
 import os
 
 from extract import extraction_entry, test
-from analysis import analysis_entry
+from tea.analysis import analysis_entry
 from params import PATH
 from parse import parse_entry
 
@@ -11,13 +11,16 @@ from parse import parse_entry
 # *********************
 def get_args():
     parser = argparse.ArgumentParser(description='Text Extractor Tool')
-    parser.add_argument('-t', '--texts', type=str, help="Path to directory containing files")
-    parser.add_argument('-e', '--exclude', nargs='+', default=[], help="List of files to exclude")
-    parser.add_argument('-x', '--ext', nargs='+', default=[], help="List of file extensions to include")
-    parser.add_argument('-l', '--labels', type=str, help="Path to directory containing labels")
-    parser.add_argument('-o', '--output', type=str, help="Path to directory for results")
-    parser.add_argument('-s', '--label_suffix', type=str, default='', help="Label file suffixes")
-    
+    # File Path Arguments
+    parser.add_argument('-t', '--texts', type=str, help="Path to directory containing raw text files")
+    parser.add_argument('-l', '--labels', type=str, help="Path to directory containing labels files")
+    parser.add_argument('-o', '--output', type=str, help="Path to directory for result files")
+
+    # Additional Arguments
+    parser.add_argument('-w', '--word', type=str, help="Label word to distinguish result, raw, and label files")
+    parser.add_argument('-e', '--ext', nargs='+', default=[], help="List of file extensions to include")   
+
+    # Optional Arguments
     parser.add_argument('--analyze', action='store_true', help="Rerun analysis layer")
     parser.add_argument('--log', action='store_true', help="Activate log print statements")
     parser.add_argument('--test', action='store_true', help="Activate test functions")
@@ -29,16 +32,10 @@ def init_paths(args):
     PATH['TEXTS'] = args.texts
 
 
-# def print_info():
-#     print("Text Extractor Automation")
-#     print("Will use built-in folders for storing, root is at: ", PATH["ROOT"])
-#     print("Assumptions: Each file has a unique name")
-
 # *********************
 # MAIN FUNCTION
 # *********************
 def main():
-
     # Validate directories
     args = get_args()
     if not args.texts or not os.path.exists(args.texts):
@@ -46,9 +43,6 @@ def main():
         exit()
     if not args.labels or not os.path.exists(args.labels):
         print("Labels directory not found!")
-        exit()
-    if not args.output or not os.path.exists(args.output):
-        print("Output directory not found!")
         exit()
 
     init_paths(args)

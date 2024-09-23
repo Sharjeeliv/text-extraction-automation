@@ -1,18 +1,12 @@
 # First Party
 import os
+from os.path import join as pjoin
 from collections import Counter
 import json
-
-from os.path import join as pjoin
-
 
 # Third Party
 import pandas as pd
 import spacy
-
-import nltk
-
-import sys
 
 # Local
 from params import DELIM, PATH, DEFAULT
@@ -21,42 +15,25 @@ from params import DELIM, PATH, DEFAULT
 BLACKLIST_WORDS = {"continue", "cont.", "continued"}
 KEYWORD_POS_TAGS = {'NOUN', 'PROPN', 'VERB', 'ADJ', 'ADV'}
 
-# def get_data_folder():
-#     # path of your data in same folder of main .py or added using --add-data
-#     if getattr(sys, 'frozen', False):
-#         data_folder_path = sys._MEIPASS
-#     else:
-#         data_folder_path = os.path.dirname(
-#             os.path.abspath(sys.modules['__main__'].__file__)
-#         )
-#     return data_folder_path
-
-
-from pathlib import Path
-
-# bundle_dir = Path(__file__).parent
-# corpus_path = f"{get_data_folder()}/en_core_web_sm"
-# nlp = spacy.load(corpus_path)
-
-# try:
-#     nlp = spacy.load("en_core_web_sm")
-# except OSError:
-#     # this wont work because the user might not have python
-#     os.system("python -m spacy download en_core_web_sm")
-#     nlp = spacy.load("en_core_web_sm")
-
-
-nltk.download('punkt')
-nltk.download('averaged_perceptron_tagger')
-
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    os.system("python -m spacy download en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm")
 
 # *********************
 # HELPER FUNCTIONS
 # *********************
-def gen_dataset():
-    files = [f for f in os.listdir(PATH['LABELS']) 
-             if os.path.isfile(os.path.join(PATH['LABELS'], f)) 
-             and f.endswith('Extracted.txt')]
+def get_files(path, label, exts):
+    files = []
+    for root, _, filenames in os.walk(path):
+        for filename in filenames:
+            if label in filename: continue
+            if filename.endswith(tuple(exts)):
+                files.append(os.path.join(root, filename))
+    return files
+
+def gen_dataset(files):
     raw = []
     for file in files:
         input_path = pjoin(PATH['LABELS'], file)
