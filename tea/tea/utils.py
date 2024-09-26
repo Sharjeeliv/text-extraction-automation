@@ -1,11 +1,9 @@
 import time
-import os
 from typing import List
 from sklearn.metrics import f1_score, precision_score, recall_score, accuracy_score
 import matplotlib.pyplot as plt
 
 import pandas as pd
-from bs4 import BeautifulSoup
 
 from params import PATH, DEFAULT
 
@@ -40,20 +38,10 @@ def metrics(results_series: pd.Series):
     # plt.show()
 
     a = results_series[results_series >= 90]
-    b = results_series[results_series >= DEFAULT["SUCCESS_THRESHOLD"] * 100]
+    b = results_series[results_series >= 70]
 
     print(f"Success Rate >= 90: {round(len(a) / len(results_series) * 100, 2):7.2f}%")
     print(f"Success Rate >= 70: {round(len(b) / len(results_series) * 100, 2):7.2f}%")
-
-    # Machine learning metrics
-    preds = [1 if score >= (DEFAULT["SUCCESS_THRESHOLD"] * 100) else 0 for score in results_series]
-    labels = [1] * len(results_series)
-    
-    print()
-    print(f"Accuracy:   {round(accuracy_score(labels, preds), 2):7.2f}")
-    print(f"Precision:  {round(precision_score(labels, preds), 2):7.2f}")
-    print(f"Recall:     {round(recall_score(labels, preds), 2):7.2f}")
-    print(f"F1:         {round(f1_score(labels, preds), 2):7.2f}")
 
 
 def plot(results_series: pd.Series):

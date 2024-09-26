@@ -28,12 +28,12 @@ def get_files(path, label, exts):
     files = []
     for root, _, filenames in os.walk(path):
         for filename in filenames:
-            if label in filename: continue
+            if label not in filename: continue
             if filename.endswith(tuple(exts)):
                 files.append(os.path.join(root, filename))
     return files
 
-def gen_dataset(files):
+def gen_dataset(files, label):
     raw = []
     for file in files:
         input_path = pjoin(PATH['LABELS'], file)
@@ -44,6 +44,11 @@ def gen_dataset(files):
             
             end = text.strip().split("\n")[-1]
             end = end if len(end.split(" ")) < DEFAULT["MAX_LINE_SIZE"] and end[-1] != "." else "null"
+
+            # Process filename
+            file = file.replace(f"_{label}", "")
+            file = os.path.basename(file)
+
             raw.append([file, title, end, text])
 
     data = pd.DataFrame(raw, columns=['File', 'Start_Title', 'End_Title', 'Text'])
@@ -123,12 +128,13 @@ def compute_constants(dataset, tallies):
 # *********************
 # ENTRY FUNCTIONS
 # *********************
-def analysis_entry( ):
-    dataset = gen_dataset()
+def analysis_entry(labels_path, label_word, exts=[".txt"]):
+    files = get_files(labels_path, label_word, exts)
+    dataset = gen_dataset(files, label_word)
     tallies = tally_keywords(dataset)
     compute_constants(dataset, tallies)
     score_keywords(tallies)
 
 if __name__ == '__main__':
-    analysis_entry()
+    analysis_entry("/Users/sharjeelmustafa/Desktop/LABELS", "Extracted", [".txt"])
     

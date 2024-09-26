@@ -51,8 +51,11 @@ def extract_titles(file_path: str, delimiter: str = '\n'):
     # Extracts "fine-grain titles" from "coarse titles" (can be used to determine end titles too)
     candidate_titles = extract_candidiates(titles, idx, keyword_dataset)
     if LOG_MODE:
-        print("\n\033[93;1mCANDIDATE TITLE SCORES\033[0m")
-        for title, score in candidate_titles: print(f"{score[0]} \t {title}")
+        output = f"File: {os.path.basename(file_path)}\n"
+        output += "\n\033[93;1mCANDIDATE TITLE SCORES\033[0m\n"
+        output += "\n".join(f"{score[0]} \t {title}" for title, score in candidate_titles)
+        print(output)
+        # for title, score in candidate_titles: print(f"{score[0]} \t {title}")
         
     return candidate_titles
 
@@ -141,9 +144,8 @@ def get_title(section: str, dataset: pd.DataFrame) -> str | None:
 # *********************
 # ENTRY FUNCTIONS
 # *********************
-def extractor(file: str, test: bool=False, label: str='') -> float | None:
+def extractor(file_path: str, test: bool=False, label: str='') -> float | None:
     try:
-        file_path = pjoin(PATH['TEXTS'], file)
         candidate_titles = extract_titles(file_path)
         if not candidate_titles: return None
     
@@ -158,20 +160,30 @@ def extractor(file: str, test: bool=False, label: str='') -> float | None:
         section = extract_section(file_path, ct, unit='line')
 
         # Write the extracted section to a file, and read test for comparison
-        name = f'{file[:-4]}{label}.txt'
+        file = os.path.basename(file_path)[:-4]
+        name = f'{file}_{label}.txt'
         label = pjoin(PATH['LABELS'], name)
         pred = pjoin(PATH['RESULTS'], name)
         open(pred, 'w').write(section)
 
+        # if LOG_MODE:
+        #     print(f"Input_File: {file}")
+        #     print(f"File_Name:  {name}")
+        #     print(f"Label:      {label}")
+        #     print(f"Full_path:  {pred}\n")
+
         if not test: return
         # If the label does not exist, return
-        if not os.path.exists(label): return
+        if not os.path.exists(label): 
+            print("ERROR - Label file not found")
+            return
 
         # Compute and print similarity
         similarity = overlap_similarity(label, pred)
         score = round(similarity*100, 2)
 
-        if LOG_MODE and score < DEFAULT["SUCCESS_THRESHOLD"]: print(f"{file[:-4]} \t {score}%")
+        if score < DEFAULT["SUCCESS_THRESHOLD"]: 
+            open(f"{PATH['ROOT'] / 'data' / 'fails.txt'}", 'a').write(f"{file}\t{score}\n")
         return score
 
     except Exception as e: 
@@ -184,20 +196,21 @@ def extractor(file: str, test: bool=False, label: str='') -> float | None:
 # *********************
 args: argparse.Namespace
 
-@time_execution
-def extraction_entry(texts_path, label, ext=['.txt'], log=False, test=True):
+def extraction_entry(texts_path, label, exts=['.txt'], log=False, test=True):
 
     # Setup and retrieve arguments
     global LOG_MODE
     LOG_MODE = log
 
     # Parse, prepare and retrieve files
-    files = get_files(texts_path, label=label, ext=ext)
-    # print(f"Files: {len(files)}")
+    files = get_files(texts_path, label=label, exts=exts)
 
+    # print(f"Files: {len(files)}")
+    # return files
     # Extract, save, and compute similarity
     manager = Manager()
     result_scores = manager.list()
+    # fails = manager.list()
     with concurrent.futures.ThreadPoolExecutor() as executor:
         # Errors are returned as None
         results = executor.map(extractor, files, [test]*len(files), [label]*len(files))

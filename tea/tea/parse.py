@@ -27,7 +27,7 @@ rm_spaces = r" {2,}"
 # *********************
 def parse_html(file_path) -> str:
     file_path = rename_file_extension(file_path, '.txt')
-    print(f"Processing: {file_path.split('/')[-1]}")
+    # print(f"Processing: {file_path.split('/')[-1]}")
 
     output = ""
     text = open(file_path, 'r').read()
@@ -119,6 +119,6 @@ def parse_entry(input_path:str, output_path: str, label=[], ext=[]):
 
 if __name__ == "__main__":
     input_folder = "/Users/sharjeelmustafa/Desktop/RA24_Testing/inputs"
-    output_folder = "/Users/sharjeelmustafa/Desktop/RA24_Testing/outputs"
+    output_folder = "/Users/sharjeelmustafa/Desktop/RA24_Testing/inputs"
     parse_entry(input_folder, output_folder, label='Extracted', ext=['.txt', '.html', '.htm'])
     

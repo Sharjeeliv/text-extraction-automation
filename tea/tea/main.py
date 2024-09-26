@@ -2,9 +2,10 @@ import argparse
 import os
 
 from extract import extraction_entry, test
-from tea.analysis import analysis_entry
-from params import PATH
+from analysis import analysis_entry
+from params import PATH, init_paths as params_init_paths
 from parse import parse_entry
+from utils import time_execution
 
 # *********************
 # HELPER FUNCTIONS
@@ -27,27 +28,31 @@ def get_args():
     return parser.parse_args()
 
 def init_paths(args):
-    PATH["LABELS"] = args.labels
-    PATH["RESULTS"] = args.output
-    PATH['TEXTS'] = args.texts
+    PATH["LABELS"] = args.labels if args.labels is not None else PATH["LABELS"]
+    PATH["RESULTS"] = args.output if args.output is not None else PATH["RESULTS"]
+    PATH['TEXTS'] = args.texts if args.texts is not None else PATH['TEXTS']
 
+def metrics_empty():
+    return not any(f in os.listdir(PATH["METRICS"]) for 
+                   f in ("roi_dataset.csv", "title_keywords.json"))
 
 # *********************
 # MAIN FUNCTION
 # *********************
 def main():
     # Validate directories
+    params_init_paths()
     args = get_args()
     if not args.texts or not os.path.exists(args.texts):
         print("Texts directory not found!")
-        exit()
+        return -1
     if not args.labels or not os.path.exists(args.labels):
         print("Labels directory not found!")
-        exit()
+        return -1
 
     init_paths(args)
-    metrics_empty = not any(f in os.listdir(PATH["METRICS"]) for 
-                            f in ("roi_dataset.csv", "title_keywords.json"))
+    
+    metrics_empty()
 
     # The parse function automatically runs if needed. It stores the parsed files in 
     # the texts directory and reuses them for extraction. If no files are present
@@ -57,11 +62,49 @@ def main():
     # before. It stores results in directory unless user forces reanalysis.
 
     parse_entry(args.texts, exclude=args.exclude, ext=args.ext)
-    if args.analyze or metrics_empty: analysis_entry()
-    extraction_entry(args)
+    if args.analyze or metrics_empty: analysis_entry(args.labels, args.word, ext=['.txt'])
+    # extraction_entry(args)
 
+    return 0
+
+@time_execution
+def extract_text(text_path, label_path, label_word, ext=[], analyze=False, log=False, test=False):
+
+    params_init_paths()
+    PATH["LABELS"] = label_path if label_path is not None else PATH["LABELS"]
+    # PATH["RESULTS"] = args.output if args.output is not None else PATH["RESULTS"]
+    PATH['TEXTS'] = text_path if text_path is not None else PATH['TEXTS']
+
+    print(
+        f"Text Path:    {text_path}\n"
+        f"Label Path:   {label_path}\n"
+        f"Label Word:   {label_word}\n"
+        f"Extensions:   {ext}\n"
+        f"Analyze:      {analyze}\n"
+        f"Log:          {log}\n"
+        f"Test:         {test}\n"
+
+        f"Metrics:      {metrics_empty()}\n"
+        f"Label Path:   {PATH['LABELS']}\n"
+        f"Results Path: {PATH['RESULTS']}\n"
+        f"Text Path:    {PATH['TEXTS']}\n"
+
+    )
+    
+    parse_entry(input_path=text_path, output_path=text_path, label=label_word, ext=ext)
+    if analyze or metrics_empty(): analysis_entry(label_path, label_word)
+    extraction_entry(text_path, label_word, log=log, test=test)
+
+    return
+    # init_paths(args)
+    # parse_entry(args.texts, exclude=args.exclude, ext=args.ext)
+    # if args.analyze: analysis_entry()
+    # extraction_entry(args)
 
 if __name__ == '__main__':
-    # test("0000891092-12-005749.txt")
-    main()
+    text_path = "/Users/sharjeelmustafa/Desktop/RA24_Testing/texts"
+    label_path = "/Users/sharjeelmustafa/Desktop/RA24_Testing/labels"
+    label_word = "Extracted"
+    ext = [".txt", ".htm", ".html"]
+    extract_text(text_path, label_path, label_word, ext=ext, log=False, test=True)
     
