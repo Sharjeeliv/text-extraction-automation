@@ -204,13 +204,10 @@ def extraction_entry(texts_path, label, exts=['.txt'], log=False, test=True):
 
     # Parse, prepare and retrieve files
     files = get_files(texts_path, label=label, exts=exts)
-
-    # print(f"Files: {len(files)}")
-    # return files
+    
     # Extract, save, and compute similarity
     manager = Manager()
     result_scores = manager.list()
-    # fails = manager.list()
     with concurrent.futures.ThreadPoolExecutor() as executor:
         # Errors are returned as None
         results = executor.map(extractor, files, [test]*len(files), [label]*len(files))
