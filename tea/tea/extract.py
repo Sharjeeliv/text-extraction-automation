@@ -14,10 +14,10 @@ from os.path import join as pjoin
 import pandas as pd
 
 # Local
-from utils import time_execution, convert_to_series, metrics
-from tests import overlap_similarity
-from parse import get_files
-from params import PATH, DEFAULT, DELIM
+from .utils import time_execution, convert_to_series, metrics
+from .tests import overlap_similarity
+from .parse import get_files
+from .params import PATH, DEFAULT, DELIM
 
 
 # *********************
@@ -36,12 +36,12 @@ LOG_MODE = False
 # *********************
 #  EXTRACTIONS FUNCTIONS
 # *********************
-def extract_titles(file_path: str, delimiter: str = '\n'):
+def extract_titles(file_path: str, metric_path: str, delimiter: str = '\n'):
     # Input validation and Guard Clause
     text, sec_html = get_text(file_path)
     text = re.sub(RM_PAGE, "", text)
     if text is None: return
-    input_path = pjoin(PATH['METRICS'], 'title_keywords.json')
+    input_path = pjoin(metric_path, 'title_keywords.json')
     keyword_dataset =  pd.read_json(input_path)
 
     # Slices Document into "coarse titles"
@@ -70,7 +70,8 @@ def extract_titles(file_path: str, delimiter: str = '\n'):
     return candidate_titles, titles, raws
 
 
-def extract_candidiates(titles: List[str], idx: List[int], dataset: pd.DataFrame, default_order: bool=False) -> List[str]:
+def extract_candidiates(titles: List[str], idx: List[int], dataset: pd.DataFrame, 
+                        default_order: bool=False) -> List[str]:
     MED_W_FREQ, scores = 1, {}
     for title, block in zip(titles, idx):
         # Count words in the title
@@ -89,12 +90,12 @@ def extract_candidiates(titles: List[str], idx: List[int], dataset: pd.DataFrame
     return top_titles, titles, idx
 
 
-def extract_section(file_path: str, start_title: str, titles: List[str], raws: List[str], unit: str='line', line_length: int = 100) -> str:
+def extract_section(file_path: str, start_title: str, titles: List[str], raws: List[str], 
+                    unit: str='line', line_length: int = 100) -> str:
     text, sec_html = get_text(file_path)
     if not sec_html:
         i = titles.index(start_title)
         start_title = raws[i]
-    
     start_index = text.find(start_title)
     text = text[start_index:]
 
@@ -161,9 +162,10 @@ def get_title(section: str, dataset: pd.DataFrame) -> str | None:
 # *********************
 # ENTRY FUNCTIONS
 # *********************
-def extractor(file_path: str, test: bool=False, label: str='') -> float | None:
+def extractor(file_path: str, metric_path: str, label_path: str, output_path: str,
+              test: bool=False, label: str='') -> float | None:
     try:
-        candidate_titles, titles, raws = extract_titles(file_path)
+        candidate_titles, titles, raws = extract_titles(file_path, metric_path)
         if not candidate_titles: 
             print(f"\033[91;1m{file_path.split('/')[-1]} \t ERROR\033[0m\t No candidate titles found")
             return None
@@ -180,8 +182,8 @@ def extractor(file_path: str, test: bool=False, label: str='') -> float | None:
         # Write the extracted section to a file, and read test for comparison
         file = os.path.basename(file_path)[:-4]
         name = f'{file}_{label}.txt'
-        label = pjoin(PATH['LABELS'], name)
-        pred = pjoin(PATH['RESULTS'], name)
+        label = pjoin(label_path, name)
+        pred = pjoin(output_path, name)
         open(pred, 'w').write(section)
 
         # if LOG_MODE:
@@ -213,8 +215,7 @@ def extractor(file_path: str, test: bool=False, label: str='') -> float | None:
 # MAIN FUNCTION
 # *********************
 args: argparse.Namespace
-
-def extraction_entry(texts_path, label, exts=['.txt'], log=False, test=True):
+def extraction_entry(texts_path, metric_path, label_path, output_path, label, exts=['.txt'], log=False, test=True):
     print("Extracting files...")
     # Setup and retrieve arguments
     global LOG_MODE
@@ -227,7 +228,8 @@ def extraction_entry(texts_path, label, exts=['.txt'], log=False, test=True):
     result_scores = manager.list()
     with concurrent.futures.ThreadPoolExecutor() as executor:
         # Errors are returned as None
-        results = executor.map(extractor, files, [test]*len(files), [label]*len(files))
+        results = executor.map(extractor, files, [metric_path]*len(files), [label_path]*len(files), 
+                               [output_path]*len(files), [test]*len(files), [label]*len(files))
         result_scores.extend([r for r in results if r is not None and r != -100.00])
 
     # Convert to Series and compute metrics

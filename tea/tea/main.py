@@ -1,11 +1,11 @@
 import argparse
 import os
 
-from extract import extraction_entry, test
-from analysis import analysis_entry
-from params import PATH, init_paths as params_init_paths
-from parse import parse_entry
-from utils import time_execution
+from .extract import extraction_entry, test
+from .analysis import analysis_entry
+from .params import PATH, init_paths as params_init_paths
+from .parse import parse_entry
+from .utils import time_execution
 
 # *********************
 # HELPER FUNCTIONS
@@ -32,8 +32,8 @@ def init_paths(args):
     PATH["RESULTS"] = args.output if args.output is not None else PATH["RESULTS"]
     PATH['TEXTS'] = args.texts if args.texts is not None else PATH['TEXTS']
 
-def metrics_empty():
-    return not any(f in os.listdir(PATH["METRICS"]) for 
+def metrics_empty(path=PATH["METRICS"]):
+    return not any(f in os.listdir(path) for 
                    f in ("roi_dataset.csv", "title_keywords.json"))
 
 # *********************
@@ -68,32 +68,35 @@ def main():
     return 0
 
 @time_execution
-def extract_text(text_path, label_path, label_word, ext=[], analyze=False, log=False, test=False):
+def extract_text(unique_id, label_word, ext=[], analyze=False, log=False, test=False):
 
     params_init_paths()
-    PATH["LABELS"] = label_path if label_path is not None else PATH["LABELS"]
-    # PATH["RESULTS"] = args.output if args.output is not None else PATH["RESULTS"]
-    PATH['TEXTS'] = text_path if text_path is not None else PATH['TEXTS']
 
-    print(
-        f"Text Path:    {text_path}\n"
-        f"Label Path:   {label_path}\n"
-        f"Label Word:   {label_word}\n"
-        f"Extensions:   {ext}\n"
-        f"Analyze:      {analyze}\n"
-        f"Log:          {log}\n"
-        f"Test:         {test}\n"
+    text_path = PATH['TEXTS'] / unique_id
+    label_path = PATH['LABELS'] / unique_id
+    output_path = PATH['RESULTS'] / unique_id
+    metric_path = PATH['METRICS'] / unique_id
 
-        f"Metrics:      {metrics_empty()}\n"
-        f"Label Path:   {PATH['LABELS']}\n"
-        f"Results Path: {PATH['RESULTS']}\n"
-        f"Text Path:    {PATH['TEXTS']}\n"
+    if log:
+        print(
+            f"Text Path:    {text_path}\n"
+            f"Output Path:  {output_path}\n"
+            f"Label Path:   {label_path}\n"
+            f"Metric Path:   {metric_path}\n"
 
-    )
+
+            f"Label Word:   {label_word}\n"
+            f"Extensions:   {ext}\n"
+            f"Analyze:      {analyze}\n"
+            f"Log:          {log}\n"
+            f"Test:         {test}\n"
+            f"Metrics:      {metrics_empty(metric_path)}\n"
+
+        )
     
     parse_entry(input_path=text_path, output_path=text_path, label=label_word, ext=ext)
-    if analyze or metrics_empty(): analysis_entry(label_path, label_word)
-    extraction_entry(text_path, label_word, log=log, test=test)
+    if analyze or metrics_empty(metric_path): analysis_entry(label_path, metric_path, label_word)
+    extraction_entry(text_path, metric_path, label_path, output_path, label_word, exts=[".txt"], log=log, test=test)
 
     return
     # init_paths(args)

@@ -9,7 +9,7 @@ import pandas as pd
 import spacy
 
 # Local
-from params import DELIM, PATH, DEFAULT
+from .params import DELIM, PATH, DEFAULT
 
 # Built-in rules
 BLACKLIST_WORDS = {"continue", "cont.", "continued"}
@@ -33,10 +33,10 @@ def get_files(path, label, exts):
                 files.append(os.path.join(root, filename))
     return files
 
-def gen_dataset(files, label):
+def gen_dataset(files, label, metric_path: str, label_path: str):
     raw = []
     for file in files:
-        input_path = pjoin(PATH['LABELS'], file)
+        input_path = pjoin(label_path, file)
         with open(input_path) as f:
             title = f.readline().lower().strip()
             if title == "": continue
@@ -52,7 +52,7 @@ def gen_dataset(files, label):
             raw.append([file, title, end, text])
 
     data = pd.DataFrame(raw, columns=['File', 'Start_Title', 'End_Title', 'Text'])
-    data.to_csv(pjoin(PATH['METRICS'], 'roi_dataset.csv'), index=False)
+    data.to_csv(pjoin(metric_path, 'roi_dataset.csv'), index=False)
     return data
 
  # https://saturncloud.io/blog/how-to-detect-and-exclude-outliers-in-a-pandas-dataframe/#:~:text=Interquartile%20Range%20(IQR),-The%20interquartile%20range&text=Any%20data%20point%20outside%20the,75th%20percentiles%20of%20the%20dataset.
@@ -98,7 +98,7 @@ def tally_keywords(df: pd.DataFrame):
     return tallies
 
 
-def score_keywords(tallies: pd.DataFrame):
+def score_keywords(tallies: pd.DataFrame, metric_path):
     total_keyword_tallies = sum(tallies['keywords'], Counter())
     median_n_words = tallies['n_words'].median()
 
@@ -106,7 +106,7 @@ def score_keywords(tallies: pd.DataFrame):
     keywords_scores = {word: [count, round(count/median_n_words, 2)] 
                    for word, count in total_keyword_tallies.items() if count > 1}
 
-    input_path = pjoin(PATH['METRICS'], 'title_keywords.json')
+    input_path = pjoin(metric_path, 'title_keywords.json')
     with open(input_path, 'w') as f: json.dump(keywords_scores, f)
     return keywords_scores
 
@@ -128,13 +128,13 @@ def compute_constants(dataset, tallies):
 # *********************
 # ENTRY FUNCTIONS
 # *********************
-def analysis_entry(labels_path, label_word, exts=[".txt"]):
+def analysis_entry(labels_path, metric_path, label_word, exts=[".txt"]):
     print("Analyzing files...")
     files = get_files(labels_path, label_word, exts)
-    dataset = gen_dataset(files, label_word)
+    dataset = gen_dataset(files, label_word, metric_path, labels_path)
     tallies = tally_keywords(dataset)
     compute_constants(dataset, tallies)
-    score_keywords(tallies)
+    score_keywords(tallies, metric_path)
 
 if __name__ == '__main__':
     analysis_entry("/Users/sharjeelmustafa/Desktop/LABELS", "Extracted", [".txt"])

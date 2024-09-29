@@ -8,8 +8,7 @@ import re
 # Third Party
 from selectolax.parser import HTMLParser
 
-from params import PATH
-from utils import time_execution
+from .utils import time_execution
 
 # selenium parsing is too slow, and hand parsing is too hard
 # Need to use more built-in features from selectolax

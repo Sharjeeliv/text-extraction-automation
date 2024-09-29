@@ -5,9 +5,6 @@ import matplotlib.pyplot as plt
 
 import pandas as pd
 
-from params import PATH, DEFAULT
-
-
 # *********************
 # EXTRACT HELPER FUNCTIONS
 # *********************
@@ -59,11 +56,6 @@ def plot(results_series: pd.Series):
 # *********************
 # HELPER FUNCTIONS
 # *********************
-def html_to_text(html_content):
-    soup = BeautifulSoup(html_content, 'html.parser')
-    text_content = soup.get_text()
-    return text_content
-
 def time_execution(func):
     def wrapper(*args, **kwargs):
         start_time = time.time()
