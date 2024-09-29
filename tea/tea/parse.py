@@ -35,6 +35,10 @@ rm_end = r"</(div|tr|table)>"
 rm_td_start = r"<td[\w\n =\"-:;%>]*>"
 rm_td_end = r"</td>"
 
+rm_font = r"^<font[\w\n =\"-:;%>]*>"
+rm_font_end = r"</font>"
+
+
 # *********************
 # PARSE FUNCTIONS
 # *********************
@@ -42,15 +46,15 @@ def parse_html(file_path) -> str:
     file_path = rename_file_extension(file_path, '.txt')
     # print(f"Processing: {file_path.split('/')[-1]}")
     
-    output = ""
+    output = "SEC_HTML\n"
     text = open(file_path, 'r').read()
 
     # Preprocess: Tag Removal
     text = re.sub(rm_graphic, "", text)
-    text = re.sub(rm_br, " ", text, flags=re.IGNORECASE)
+    text = re.sub(rm_br, "BREAK", text, flags=re.IGNORECASE)
     text = re.sub(rm_sup, "", text, flags=re.IGNORECASE)
 
-    # Preprocess: Tag Conversion
+    # Preprocess: Tag Conversion    
     text = re.sub(rm_start, "<p>", text, flags=re.IGNORECASE)
     text = re.sub(rm_end, "</p>", text, flags=re.IGNORECASE)
     text = re.sub(rm_td_start, "", text, flags=re.IGNORECASE)
@@ -66,6 +70,7 @@ def parse_html(file_path) -> str:
         element_text = re.sub("\xa0", "\n", element_text)
         element_text = re.sub("\u2003", "  ", element_text)
         element_text = re.sub("\n", " ", element_text)
+
         # Remove Bullets
         element_text = re.sub(rm_extra, "", element_text)
         element_text = element_text.strip()
@@ -76,6 +81,7 @@ def parse_html(file_path) -> str:
     output = re.sub(rm_extranl, "\n\n", output)
     output = re.sub(rm_empty, "", output, flags=re.MULTILINE)
     output = re.sub(rm_spaces, " ", output)
+    output = re.sub("BREAK", "\n", output, flags=re.IGNORECASE)
 
     return output
 

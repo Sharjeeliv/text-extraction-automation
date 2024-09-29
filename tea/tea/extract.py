@@ -24,40 +24,50 @@ from params import PATH, DEFAULT, DELIM
 # VARIABLE DECLARATIONS
 # *********************
 TITLE, SCORE = 0, 1
-LOG_MODE = False
 # Main and fine-grained regex patterns
 R_TITLE = r"^\s*\w(?:\w*[ (&,\'\’\w)-]++|(?<=\(\w))+(?:\(\w*\))?[:;]?$"
 R_TITLE_FRAGMENT = r"^\s*\w(?:\w*[ (&,\'\’\w)-]++|(?<=\(\w))+(?:\(\w*\))?:"
 R_NO_NUM = r"^\D.*\D$"
 R_SENTENCE = r"^(\w+\s\w+\s\w+\s?)((\w+|-)\s?)*"
+RM_PAGE = r"<PAGE>"
+# Global Control Variables
+LOG_MODE = False
 
 # *********************
 #  EXTRACTIONS FUNCTIONS
 # *********************
 def extract_titles(file_path: str, delimiter: str = '\n'):
     # Input validation and Guard Clause
-    text = get_text(file_path)
+    text, sec_html = get_text(file_path)
+    text = re.sub(RM_PAGE, "", text)
     if text is None: return
     input_path = pjoin(PATH['METRICS'], 'title_keywords.json')
     keyword_dataset =  pd.read_json(input_path)
 
     # Slices Document into "coarse titles"
-    titles, idx = [], []
-    for i, line in enumerate(text.split(delimiter)):
+    titles, idx, raws = [], [], []
+    delim = delimiter if sec_html else "\n\n"
+    for i, line in enumerate(text.split(delim)):
+        raw = line
+        if not sec_html:
+            line = re.sub(r'[\n\t\r]', ' ', line)
+            line = re.sub(r'\s+', ' ', line)
         title = get_title(line, keyword_dataset)
         if title is None: continue
         titles.append(title)
         idx.append(i)
+        raws.append(raw)
+
 
     # Extracts "fine-grain titles" from "coarse titles" (can be used to determine end titles too)
-    candidate_titles = extract_candidiates(titles, idx, keyword_dataset)
+    candidate_titles, titles, idx = extract_candidiates(titles, idx, keyword_dataset)
     if LOG_MODE:
         output = f"File: {os.path.basename(file_path)}\n"
         output += "\n\033[93;1mCANDIDATE TITLE SCORES\033[0m\n"
         output += "\n".join(f"{score[0]} \t {title}" for title, score in candidate_titles)
         print(output)
         
-    return candidate_titles
+    return candidate_titles, titles, raws
 
 
 def extract_candidiates(titles: List[str], idx: List[int], dataset: pd.DataFrame, default_order: bool=False) -> List[str]:
@@ -76,11 +86,15 @@ def extract_candidiates(titles: List[str], idx: List[int], dataset: pd.DataFrame
     # Sort and take top titles (we already take the top scored titles)
     sorted_scores = sorted(scores.items(), key=lambda x: x[1][0], reverse=True)
     top_titles = [(title, score) for title, score in sorted_scores[:DEFAULT["N_TOP_TITLES"]]]
-    return top_titles
+    return top_titles, titles, idx
 
 
-def extract_section(file_path: str, start_title: str, unit: str='line', line_length: int = 100) -> str:
-    text = get_text(file_path)
+def extract_section(file_path: str, start_title: str, titles: List[str], raws: List[str], unit: str='line', line_length: int = 100) -> str:
+    text, sec_html = get_text(file_path)
+    if not sec_html:
+        i = titles.index(start_title)
+        start_title = raws[i]
+    
     start_index = text.find(start_title)
     text = text[start_index:]
 
@@ -106,10 +120,11 @@ def extract_section(file_path: str, start_title: str, unit: str='line', line_len
 def get_text(file_path: str) -> str:
     if file_path.endswith('.txt'): 
         txt = open(file_path, 'r').read()
+        sec_html = True if "SEC_HTML" in txt[:100] else False
         txt = txt[DEFAULT["TOC_SKIP_CHARS"]:]
         i = txt.find("GRAPHIC")
         if i != -1: txt = txt[:i]
-        return txt
+        return txt, sec_html
 
 def get_title(section: str, dataset: pd.DataFrame) -> str | None:
     # Multiples rule are applied to filter out invalid titles
@@ -148,7 +163,7 @@ def get_title(section: str, dataset: pd.DataFrame) -> str | None:
 # *********************
 def extractor(file_path: str, test: bool=False, label: str='') -> float | None:
     try:
-        candidate_titles = extract_titles(file_path)
+        candidate_titles, titles, raws = extract_titles(file_path)
         if not candidate_titles: 
             print(f"\033[91;1m{file_path.split('/')[-1]} \t ERROR\033[0m\t No candidate titles found")
             return None
@@ -160,8 +175,7 @@ def extractor(file_path: str, test: bool=False, label: str='') -> float | None:
         # Extract the section of text between title and const
         ct = candidate_titles[candidate_index][TITLE]
 
-
-        section = extract_section(file_path, ct, unit='line')
+        section = extract_section(file_path, ct, titles, raws, unit='line')
 
         # Write the extracted section to a file, and read test for comparison
         file = os.path.basename(file_path)[:-4]
@@ -242,7 +256,7 @@ if __name__ == "__main__":
 
     PATH['TEXTS'] = '/Users/sharjeelmustafa/Desktop/RA24_Testing/texts'
     PATH['LABELS'] = '/Users/sharjeelmustafa/Desktop/RA24_Testing/labels'
-    name = "0001193125-21-287030"
+    name = "0000891804-11-003472"
     text_path = f"{PATH['TEXTS']}/{name}.txt"
     test(text_path)
     
