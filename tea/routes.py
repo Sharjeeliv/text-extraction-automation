@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, send_from_directory, url_for, flash
+from flask import Blueprint, render_template, request, redirect, send_from_directory, url_for, flash, after_this_request
 from .tea.params import PATH
 from .tea.main import extract_text
 import os
@@ -54,27 +54,43 @@ def tea():
         results.extend([f"{f.filename.split('.')[0]}_{word}.txt" for f in chunk])
         delete_files(texts, texts_path)
     
+    # Zip and return download link
+    zipfile = zip_file(result_path, unique_id)
+
     # Delete remaining files
-    print(len(results))
     delete_files(results, result_path)
     delete_files(labels, labels_path)
     delete_files(['roi_dataset.csv', 'title_keywords.json'], metric_path)
+    
     delete_folder(texts_path)
     delete_folder(labels_path)
     delete_folder(metric_path)
-    delete_folder(result_path)
+    # delete_folder(result_path)
 
     flash("Completed", 'success')
 
-    return render_template('interface.html')
+    return redirect(url_for('main.download', filename=zipfile, unique_id=unique_id))
 
-@main.route("/download/<filename>")
-def download(filename):
-    return send_from_directory(PATH['RESULTS'], filename, as_attachment=True)
+@main.route("/download/<unique_id>/<filename>")
+def download(filename, unique_id):
+    result_path = os.path.join(PATH['RESULTS'], unique_id)
+    path = os.path.join(PATH['RESULTS'], unique_id)
+    # Delete files after download
+    @after_this_request
+    def delete_result(response):
+        try:
+            delete_files([filename], path)
+            delete_folder(result_path)
+        except Exception as error:
+            print("Error removing or closing downloaded file", error)
+        return response
+
+    return send_from_directory(result_path, filename, as_attachment=True)
 
 # *********************
 # HELPER FUNCTIONS
 # *********************
+
 def validated_inputs(texts, labels, word, exts):
     if len(texts) == 0:
         flash("Please provide a texts folder", 'danger')
@@ -96,12 +112,17 @@ def get_unique_user_path(base_path, unique_id: str):
     os.makedirs(user_path, exist_ok=True)
     return user_path
 
-def zip_file():
-    zipf = zipfile.ZipFile('results.zip', 'w', zipfile.ZIP_DEFLATED)
-    for root, _, files in os.walk(PATH['RESULTS']):
-        for file in files: zipf.write(os.path.join(root, file), file)
+def zip_file(path, unique_id):
+    zip_filename = f"{unique_id}-results.zip"
+    zip_path = os.path.join(path, zip_filename)
+    zipf = zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED)
+    for root, _, files in os.walk(path):
+        for file in files:
+            if file == zip_filename: continue
+            zipf.write(os.path.join(root, file), file)
     zipf.close()
-    return url_for('main.download', filename='results.zip')
+    # url_for('main.download', filename=f'{id}-results.zip', unique_id=id)
+    return zip_filename
 
 def save_files(files, path, exts):
     if files is None: return -1

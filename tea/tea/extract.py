@@ -202,8 +202,8 @@ def extractor(file_path: str, metric_path: str, label_path: str, output_path: st
         similarity = overlap_similarity(label, pred)
         score = round(similarity*100, 2)
 
-        if score < DEFAULT["SUCCESS_THRESHOLD"]: 
-            open(f"{PATH['ROOT'] / 'data' / 'fails.txt'}", 'a').write(f"{file}\t{score}\n")
+        # if score < DEFAULT["SUCCESS_THRESHOLD"]: 
+        #     open(f"{PATH['ROOT'] / 'data' / 'fails.txt'}", 'a').write(f"{file}\t{score}\n")
         return score
 
     except Exception as e: 
