@@ -9,18 +9,31 @@ import re
 from selectolax.parser import HTMLParser
 
 from params import PATH
+from utils import time_execution
+
+# selenium parsing is too slow, and hand parsing is too hard
+# Need to use more built-in features from selectolax
 
 # *********************
 # CONST & VARIABLES
 # *********************
 N_TOP_HTML_CHARS =  2325
 
-# Regex
+# Generic Regex
 rm_graphic = r"<DOCUMENT>\n?<TYPE>GRAPHIC(.*\n)*?<\/DOCUMENT>"
-rm_table = r"<table(.|\n)*?</table>"
+# rm_table = r"<table(.|\n)*?</table>"
+rm_br = r"<br>"
 rm_extranl = r"\n{3,}"
 rm_empty = r"^\s*$"
 rm_spaces = r" {2,}"
+rm_sup = r"<sup[\w\n =\"-:;%>]*</sup>"
+rm_extra = r"^[*|•|\s]*$"
+
+# Conversion Regex
+rm_start = r"<(div|tr|table)[\w\n =\"-:;%>]*>"
+rm_end = r"</(div|tr|table)>"
+rm_td_start = r"<td[\w\n =\"-:;%>]*>"
+rm_td_end = r"</td>"
 
 # *********************
 # PARSE FUNCTIONS
@@ -28,35 +41,38 @@ rm_spaces = r" {2,}"
 def parse_html(file_path) -> str:
     file_path = rename_file_extension(file_path, '.txt')
     # print(f"Processing: {file_path.split('/')[-1]}")
-
+    
     output = ""
     text = open(file_path, 'r').read()
 
-    # Preprocess the html
+    # Preprocess: Tag Removal
     text = re.sub(rm_graphic, "", text)
-    text = re.sub(rm_table, "", text, flags=re.IGNORECASE)
+    text = re.sub(rm_br, " ", text, flags=re.IGNORECASE)
+    text = re.sub(rm_sup, "", text, flags=re.IGNORECASE)
+
+    # Preprocess: Tag Conversion
+    text = re.sub(rm_start, "<p>", text, flags=re.IGNORECASE)
+    text = re.sub(rm_end, "</p>", text, flags=re.IGNORECASE)
+    text = re.sub(rm_td_start, "", text, flags=re.IGNORECASE)
+    text = re.sub(rm_td_end, "", text, flags=re.IGNORECASE)
 
     # HTML Parsing
     html = HTMLParser(text)
-    html.unwrap_tags(['font', 'i', 'sub', 'b'])
-    html = html.root.traverse()
-    for node in html:
-        tag = node.tag.lower()
-        # Guard clause
-        if tag not in {"p", "div"}: continue
-        # Extract text based on tag
-        if tag == "p": text = node.text(strip=True)
-        if tag == "div": text = node.text(deep=False, strip=True)
+    for element in html.css("p"):
+        element_text = element.text(deep=True)
+
         # Remove same paragraph breaks
-        temp = text.replace("\n", " ")
-        temp = text.replace("\t", " ")
-        # Use unicode, e.g., \xa0 is the Unicode character for &nbsp;
-        temp = temp.replace("\xa0", "\n")
-        temp = temp.replace("\u2003", "  ")
-        if len(temp) > 2: temp = temp.replace("\n", " ")
-        output += temp.strip() + "\n"
-    
-    # Postprocess the output text
+        element_text = re.sub("\t", " ", element_text)
+        element_text = re.sub("\xa0", "\n", element_text)
+        element_text = re.sub("\u2003", "  ", element_text)
+        element_text = re.sub("\n", " ", element_text)
+        # Remove Bullets
+        element_text = re.sub(rm_extra, "", element_text)
+        element_text = element_text.strip()
+        if element_text:    output += element_text + "\n"
+        else:               output += "\n"
+
+    # Postprocess: Text Cleaning
     output = re.sub(rm_extranl, "\n\n", output)
     output = re.sub(rm_empty, "", output, flags=re.MULTILINE)
     output = re.sub(rm_spaces, " ", output)
@@ -112,13 +128,15 @@ def get_files(path, label, exts):
 # *********************
 # MAIN FUNCTIONS
 # *********************
+@time_execution
 def parse_entry(input_path:str, output_path: str, label=[], ext=[]):
+    print("Parsing files...")
     files = get_files(input_path, label, ext)
     parse_files(files, output_path)
 
 
 if __name__ == "__main__":
-    input_folder = "/Users/sharjeelmustafa/Desktop/RA24_Testing/inputs"
-    output_folder = "/Users/sharjeelmustafa/Desktop/RA24_Testing/inputs"
+    input_folder = "/Users/sharjeelmustafa/Desktop/PARSE_TEST/IN"
+    output_folder = "/Users/sharjeelmustafa/Desktop/PARSE_TEST/OUT"
     parse_entry(input_folder, output_folder, label='Extracted', ext=['.txt', '.html', '.htm'])
     

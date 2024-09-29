@@ -129,6 +129,7 @@ def compute_constants(dataset, tallies):
 # ENTRY FUNCTIONS
 # *********************
 def analysis_entry(labels_path, label_word, exts=[".txt"]):
+    print("Analyzing files...")
     files = get_files(labels_path, label_word, exts)
     dataset = gen_dataset(files, label_word)
     tallies = tally_keywords(dataset)

@@ -26,7 +26,8 @@ from params import PATH, DEFAULT, DELIM
 TITLE, SCORE = 0, 1
 LOG_MODE = False
 # Main and fine-grained regex patterns
-R_TITLE = r"^\s*\w(?:\w*[ (&,\'\’\w)-]++|(?<=\(\w))+(?:\(\w*\))?(:;)?$"
+R_TITLE = r"^\s*\w(?:\w*[ (&,\'\’\w)-]++|(?<=\(\w))+(?:\(\w*\))?[:;]?$"
+R_TITLE_FRAGMENT = r"^\s*\w(?:\w*[ (&,\'\’\w)-]++|(?<=\(\w))+(?:\(\w*\))?:"
 R_NO_NUM = r"^\D.*\D$"
 R_SENTENCE = r"^(\w+\s\w+\s\w+\s?)((\w+|-)\s?)*"
 
@@ -55,7 +56,6 @@ def extract_titles(file_path: str, delimiter: str = '\n'):
         output += "\n\033[93;1mCANDIDATE TITLE SCORES\033[0m\n"
         output += "\n".join(f"{score[0]} \t {title}" for title, score in candidate_titles)
         print(output)
-        # for title, score in candidate_titles: print(f"{score[0]} \t {title}")
         
     return candidate_titles
 
@@ -116,6 +116,8 @@ def get_title(section: str, dataset: pd.DataFrame) -> str | None:
     # e.g., title length, punctuation, and structure
     section = section.strip()
     candidate_title = re.match(R_TITLE, section)
+    if not candidate_title and section and section[-1] != '.':
+        candidate_title = re.match(R_TITLE_FRAGMENT, section)
     # Return None if no title found
     if not candidate_title: return None
     # Title Filters
@@ -147,7 +149,9 @@ def get_title(section: str, dataset: pd.DataFrame) -> str | None:
 def extractor(file_path: str, test: bool=False, label: str='') -> float | None:
     try:
         candidate_titles = extract_titles(file_path)
-        if not candidate_titles: return None
+        if not candidate_titles: 
+            print(f"\033[91;1m{file_path.split('/')[-1]} \t ERROR\033[0m\t No candidate titles found")
+            return None
     
         # Score the candidate titles and extract the best one, pick first index if tie
         _, candidate_index = max((ct[SCORE][0], -i) for i, ct in enumerate(candidate_titles))
@@ -197,14 +201,13 @@ def extractor(file_path: str, test: bool=False, label: str='') -> float | None:
 args: argparse.Namespace
 
 def extraction_entry(texts_path, label, exts=['.txt'], log=False, test=True):
-
+    print("Extracting files...")
     # Setup and retrieve arguments
     global LOG_MODE
     LOG_MODE = log
 
     # Parse, prepare and retrieve files
     files = get_files(texts_path, label=label, exts=exts)
-    
     # Extract, save, and compute similarity
     manager = Manager()
     result_scores = manager.list()
@@ -224,7 +227,10 @@ def extraction_entry(texts_path, label, exts=['.txt'], log=False, test=True):
 # *********************
 @time_execution
 def test(file: str):
-    r = extractor(file)
+    global LOG_MODE
+    LOG_MODE = True
+
+    r = extractor(file, test=True, label='Extracted')
     print(f"Score: {r}")
 
 
@@ -233,11 +239,10 @@ def test_title(title: str):
     print(get_title(title, keyword_dataset))
 
 if __name__ == "__main__":
-    args = argparse.Namespace()
-    args.exclude = ["Extracted"]
-    args.label_suffix = "Extracted"
-    args.log = False
-    args.test = True
 
-    extraction_entry(args)
+    PATH['TEXTS'] = '/Users/sharjeelmustafa/Desktop/RA24_Testing/texts'
+    PATH['LABELS'] = '/Users/sharjeelmustafa/Desktop/RA24_Testing/labels'
+    name = "0001193125-21-287030"
+    text_path = f"{PATH['TEXTS']}/{name}.txt"
+    test(text_path)
     

@@ -7,6 +7,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 from params import PATH
 
 R_SENTENCE = r"^(\w+\s\w+\s\w+\s?)((\w+|-)\s?)*"
+TESTING = False
+
 
 # *********************
 # HELPER FUNCTIONS
@@ -46,26 +48,35 @@ def overlap_similarity(label: str, pred: str):
     lwords = tokenize(ltext, "sentence")
     pwords = tokenize(ptext, "sentence")
 
-    # with open(f"{PATH[ROOT] / data / 'label.txt'}", 'w') as f:
-    #     for w in lwords: f.write(w+'\n')
-            
-    # with open(f"{PATH[ROOT] / data / 'pred.txt'}", 'w') as f:
-    #     for w in pwords: f.write(w+'\n')
-
-
-    # Print the excess number of lines in the prediction 
-    # for i, w in enumerate(words2): 
-    #     if w not in words1[-3:-1]: continue
-    #     print(f"End: {i:5}\tExcess: {len(words2) - i:5}")
-    #     break
-    
-    # Print the tokenization of the paragraph into lines
-    # print(f"Words1: {len(words1)}")
-    # for n, i in enumerate(words1): print(f"{n:3}: {i[:64]}...")
+    if TESTING:
+        with open(f"{PATH['ROOT'] / 'data' / 'label.txt'}", 'w') as f:
+            for w in lwords: f.write(w+'\n')
+                
+        with open(f"{PATH['ROOT'] / 'data' / 'pred.txt'}", 'w') as f:
+            for w in pwords: f.write(w+'\n')
 
     lwords, pwords = set(lwords), set(pwords)
     intersection = len(lwords.intersection(pwords))
     return intersection / len(lwords)
+
+# *********************
+# ADDITIONAL METHODS
+# *********************
+def print_excess(label: str, pred: str):
+        
+        ltext, ptext = get_text(label, pred)
+        lwords = tokenize(ltext, "sentence")
+        pwords = tokenize(ptext, "sentence")
+    
+        for i, w in enumerate(pwords): 
+            if w not in lwords[-3:-1]: continue
+            print(f"End: {i:5}\tExcess: {len(pwords) - i:5}")
+            break
+
+def print_tokenization(lwords):
+    print(f"Words-l: {len(lwords)}")
+    for n, i in enumerate(lwords): print(f"{n:3}: {i[:64]}...")
+
 
 # *********************
 # TOKEN BASED METHODS
@@ -108,9 +119,11 @@ def ngram_similarity(label: str, pred: str, n: int=3):
     return intersection / union
 
 if __name__ == "__main__":
-    filename = "0001193125-11-243060_Extracted.txt"
-    label = f"/Users/sharjeelmustafa/Desktop/RA24_Testing/labels/{filename}"
-    pred = f"/Users/sharjeelmustafa/Documents/Academic/University/Research/SEM_8_Azi/text_analysis/tea/data/results/{filename}"
+    TESTING = True
+
+    id = "0000891804-17-000679"
+    label = f"/Users/sharjeelmustafa/Desktop/RA24_Testing/labels/{id}_Extracted.txt"
+    pred = f"/Users/sharjeelmustafa/Documents/Academic/University/Research/SEM_8_Azi/text_analysis/tea/data/results/{id}_Extracted.txt"
     if not os.path.exists(label) or not os.path.exists(pred):
         print("ERROR - File not found")
         exit(-1)
