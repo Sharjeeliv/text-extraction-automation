@@ -4,13 +4,13 @@ from pathlib import Path
 # Uses the current file path to dynamically get the root path
 _ROOT_PATH = Path(os.path.abspath(__file__)).parent.parent
 
+# Define the paths using pathlib to handle cross-platform path structures
 PATH = {
-    "ROOT":     f"{_ROOT_PATH}",
-    "TEXTS":    f"{_ROOT_PATH / 'data/texts/'}",
-    "DRIVER":   f"{_ROOT_PATH / 'data/driver/'}",
-    "METRICS":  f"{_ROOT_PATH / 'data/metrics/'}",
-    "RESULTS":  f"{_ROOT_PATH / 'data/results/'}",
-    "LABELS":   f"{_ROOT_PATH / 'data/results/label/'}",
+    "ROOT":     _ROOT_PATH,
+    "TEXTS":    _ROOT_PATH / 'data' / 'texts',
+    "RESULTS":  _ROOT_PATH / 'data' / 'results',
+    "LABELS":   _ROOT_PATH / 'data' / 'labels',
+    "METRICS":  _ROOT_PATH / 'data' / 'metrics',
 }
 
 # Change the default parameters for each dataset
@@ -21,7 +21,7 @@ DEFAULT = {
     "TOC_SKIP_CHARS": 10000,    # Skip the first n chars in the document to bypass the Table of Contents
     "MAX_SECT_SIZE": 673,       # Max size of a section (100 char units) based on pre-analysis
     "MAX_LINE_SIZE": 14,        # Max size of a line (word units) based on pre-analysis
-    "SUCCESS_THRESHOLD": 0.7,   # Threshold for successful extraction
+    "SUCCESS_THRESHOLD": 70,   # Threshold percent for successful extraction
     # Title Word Parameters (differs per dataset)
     "REPEATABLE_KEYWORDS": ["advisory", "agreement", "agreements", "management"],
     "SPECIAL_PHRASES": ["investment advisory", "investment sub-advisory"]
@@ -32,9 +32,10 @@ DELIM = {
     "WORD": " "
 }
 
-def init_path():
+def init_paths():
     for _, value in PATH.items(): os.makedirs(value, exist_ok=True)
 
 if __name__ == "__main__":
+    init_paths()
     for key, value in PATH.items(): print(f"{key}: {value}")
     

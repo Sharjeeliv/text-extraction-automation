@@ -8,55 +8,70 @@ import concurrent.futures
 from collections import Counter
 from typing import List
 from multiprocessing import Manager
+from os.path import join as pjoin
 
 # Third Party
 import pandas as pd
 
 # Local
-from utils import time_execution, convert_to_series, metrics
-from tests import *
-# from parse import get_files, get_raw_files
-from parse import get_files
-from params import PATH, DEFAULT, DELIM
+from .utils import time_execution, convert_to_series, metrics
+from .tests import overlap_similarity
+from .parse import get_files
+from .params import PATH, DEFAULT, DELIM
 
 
 # *********************
 # VARIABLE DECLARATIONS
 # *********************
 TITLE, SCORE = 0, 1
-LOG_MODE = False
 # Main and fine-grained regex patterns
-R_TITLE = r"^\s*\w(?:\w*[ (&,\'\’\w)-]++|(?<=\(\w))+(?:\(\w*\))?(:;)?$"
+R_TITLE = r"^\s*\w(?:\w*[ (&,\'\’\w)-]++|(?<=\(\w))+(?:\(\w*\))?[:;]?$"
+R_TITLE_FRAGMENT = r"^\s*\w(?:\w*[ (&,\'\’\w)-]++|(?<=\(\w))+(?:\(\w*\))?:"
 R_NO_NUM = r"^\D.*\D$"
 R_SENTENCE = r"^(\w+\s\w+\s\w+\s?)((\w+|-)\s?)*"
+RM_PAGE = r"<PAGE>"
+# Global Control Variables
+LOG_MODE = False
 
 # *********************
 #  EXTRACTIONS FUNCTIONS
 # *********************
-def extract_titles(file_path: str, delimiter: str = '\n'):
+def extract_titles(file_path: str, metric_path: str, delimiter: str = '\n'):
     # Input validation and Guard Clause
-    text = get_text(file_path)
+    text, sec_html = get_text(file_path)
+    text = re.sub(RM_PAGE, "", text)
     if text is None: return
-    keyword_dataset =  pd.read_json(f'{PATH['METRICS']}/title_keywords.json')
+    input_path = pjoin(metric_path, 'title_keywords.json')
+    keyword_dataset =  pd.read_json(input_path)
 
     # Slices Document into "coarse titles"
-    titles, idx = [], []
-    for i, line in enumerate(text.split(delimiter)):
+    titles, idx, raws = [], [], []
+    delim = delimiter if sec_html else "\n\n"
+    for i, line in enumerate(text.split(delim)):
+        raw = line
+        if not sec_html:
+            line = re.sub(r'[\n\t\r]', ' ', line)
+            line = re.sub(r'\s+', ' ', line)
         title = get_title(line, keyword_dataset)
         if title is None: continue
         titles.append(title)
         idx.append(i)
+        raws.append(raw)
+
 
     # Extracts "fine-grain titles" from "coarse titles" (can be used to determine end titles too)
-    candidate_titles = extract_candidiates(titles, idx, keyword_dataset)
+    candidate_titles, titles, idx = extract_candidiates(titles, idx, keyword_dataset)
     if LOG_MODE:
-        print("\n\033[93;1mCANDIDATE TITLE SCORES\033[0m")
-        for title, score in candidate_titles: print(f"{score[0]} \t {title}")
+        output = f"File: {os.path.basename(file_path)}\n"
+        output += "\n\033[93;1mCANDIDATE TITLE SCORES\033[0m\n"
+        output += "\n".join(f"{score[0]} \t {title}" for title, score in candidate_titles)
+        print(output)
         
-    return candidate_titles
+    return candidate_titles, titles, raws
 
 
-def extract_candidiates(titles: List[str], idx: List[int], dataset: pd.DataFrame, default_order: bool=False) -> List[str]:
+def extract_candidiates(titles: List[str], idx: List[int], dataset: pd.DataFrame, 
+                        default_order: bool=False) -> List[str]:
     MED_W_FREQ, scores = 1, {}
     for title, block in zip(titles, idx):
         # Count words in the title
@@ -72,11 +87,15 @@ def extract_candidiates(titles: List[str], idx: List[int], dataset: pd.DataFrame
     # Sort and take top titles (we already take the top scored titles)
     sorted_scores = sorted(scores.items(), key=lambda x: x[1][0], reverse=True)
     top_titles = [(title, score) for title, score in sorted_scores[:DEFAULT["N_TOP_TITLES"]]]
-    return top_titles
+    return top_titles, titles, idx
 
 
-def extract_section(file_path: str, start_title: str, unit: str='line', line_length: int = 100) -> str:
-    text = get_text(file_path)
+def extract_section(file_path: str, start_title: str, titles: List[str], raws: List[str], 
+                    unit: str='line', line_length: int = 100) -> str:
+    text, sec_html = get_text(file_path)
+    if not sec_html:
+        i = titles.index(start_title)
+        start_title = raws[i]
     start_index = text.find(start_title)
     text = text[start_index:]
 
@@ -102,16 +121,19 @@ def extract_section(file_path: str, start_title: str, unit: str='line', line_len
 def get_text(file_path: str) -> str:
     if file_path.endswith('.txt'): 
         txt = open(file_path, 'r').read()
+        sec_html = True if "SEC_HTML" in txt[:100] else False
         txt = txt[DEFAULT["TOC_SKIP_CHARS"]:]
         i = txt.find("GRAPHIC")
         if i != -1: txt = txt[:i]
-        return txt
+        return txt, sec_html
 
 def get_title(section: str, dataset: pd.DataFrame) -> str | None:
     # Multiples rule are applied to filter out invalid titles
     # e.g., title length, punctuation, and structure
     section = section.strip()
     candidate_title = re.match(R_TITLE, section)
+    if not candidate_title and section and section[-1] != '.':
+        candidate_title = re.match(R_TITLE_FRAGMENT, section)
     # Return None if no title found
     if not candidate_title: return None
     # Title Filters
@@ -140,12 +162,13 @@ def get_title(section: str, dataset: pd.DataFrame) -> str | None:
 # *********************
 # ENTRY FUNCTIONS
 # *********************
-def extractor(file: str, test: bool=False, label_suffix: str='') -> float | None:
+def extractor(file_path: str, metric_path: str, label_path: str, output_path: str,
+              test: bool=False, label: str='') -> float | None:
     try:
-        file_path = f"{PATH['TEXTS']}/{file}"
-        
-        candidate_titles = extract_titles(file_path)
-        if not candidate_titles: return None
+        candidate_titles, titles, raws = extract_titles(file_path, metric_path)
+        if not candidate_titles: 
+            print(f"\033[91;1m{file_path.split('/')[-1]} \t ERROR\033[0m\t No candidate titles found")
+            return None
     
         # Score the candidate titles and extract the best one, pick first index if tie
         _, candidate_index = max((ct[SCORE][0], -i) for i, ct in enumerate(candidate_titles))
@@ -154,25 +177,33 @@ def extractor(file: str, test: bool=False, label_suffix: str='') -> float | None
         # Extract the section of text between title and const
         ct = candidate_titles[candidate_index][TITLE]
 
-
-        section = extract_section(file_path, ct, unit='line')
+        section = extract_section(file_path, ct, titles, raws, unit='line')
 
         # Write the extracted section to a file, and read test for comparison
-        name = f'{file[:-4]}{label_suffix}.txt'
-        label = f'{PATH["LABELS"]}/{name}'
-        pred = f'{PATH["RESULTS"]}/pred/{name}'
-
+        file = os.path.basename(file_path)[:-4]
+        name = f'{file}_{label}.txt'
+        label = pjoin(label_path, name)
+        pred = pjoin(output_path, name)
         open(pred, 'w').write(section)
 
+        # if LOG_MODE:
+        #     print(f"Input_File: {file}")
+        #     print(f"File_Name:  {name}")
+        #     print(f"Label:      {label}")
+        #     print(f"Full_path:  {pred}\n")
+
         if not test: return
-        # Save the label if it does not exist to other directory
-        # if not os.path.exists(save): open(save, 'w').write(open(label, 'r').read())
+        # If the label does not exist, return
+        if not os.path.exists(label): 
+            print("ERROR - Label file not found")
+            return
 
         # Compute and print similarity
         similarity = overlap_similarity(label, pred)
         score = round(similarity*100, 2)
 
-        if LOG_MODE and score < DEFAULT["SUCCESS_THRESHOLD"]: print(f"{file[:-4]} \t {score}%")
+        # if score < DEFAULT["SUCCESS_THRESHOLD"]: 
+        #     open(f"{PATH['ROOT'] / 'data' / 'fails.txt'}", 'a').write(f"{file}\t{score}\n")
         return score
 
     except Exception as e: 
@@ -183,27 +214,26 @@ def extractor(file: str, test: bool=False, label_suffix: str='') -> float | None
 # *********************
 # MAIN FUNCTION
 # *********************
-@time_execution
-def extraction_entry(args: argparse.Namespace):
-
+args: argparse.Namespace
+def extraction_entry(texts_path, metric_path, label_path, output_path, label, exts=['.txt'], log=False, test=True):
+    print("Extracting files...")
     # Setup and retrieve arguments
     global LOG_MODE
-    LOG_MODE = args.log
+    LOG_MODE = log
 
     # Parse, prepare and retrieve files
-    files = get_files(PATH["TEXTS"], exclude=args.exclude, ext=['.txt'])
-    # print(f"Files: {len(files)}")
-
+    files = get_files(texts_path, label=label, exts=exts)
     # Extract, save, and compute similarity
     manager = Manager()
     result_scores = manager.list()
     with concurrent.futures.ThreadPoolExecutor() as executor:
         # Errors are returned as None
-        results = executor.map(extractor, files, [args.test]*len(files), [args.label_suffix]*len(files))
+        results = executor.map(extractor, files, [metric_path]*len(files), [label_path]*len(files), 
+                               [output_path]*len(files), [test]*len(files), [label]*len(files))
         result_scores.extend([r for r in results if r is not None and r != -100.00])
 
     # Convert to Series and compute metrics
-    if not args.test: return
+    if not test: return
     print("Files: ", len(result_scores))
     result_scores = convert_to_series(result_scores)
     metrics(result_scores)
@@ -213,7 +243,10 @@ def extraction_entry(args: argparse.Namespace):
 # *********************
 @time_execution
 def test(file: str):
-    r = extractor(file)
+    global LOG_MODE
+    LOG_MODE = True
+
+    r = extractor(file, test=True, label='Extracted')
     print(f"Score: {r}")
 
 
@@ -222,11 +255,10 @@ def test_title(title: str):
     print(get_title(title, keyword_dataset))
 
 if __name__ == "__main__":
-    args = argparse.Namespace()
-    args.exclude = ["Extracted"]
-    args.label_suffix = "Extracted"
-    args.log = False
-    args.test = True
 
-    extraction_entry(args)
+    PATH['TEXTS'] = '/Users/sharjeelmustafa/Desktop/RA24_Testing/texts'
+    PATH['LABELS'] = '/Users/sharjeelmustafa/Desktop/RA24_Testing/labels'
+    name = "0000891804-11-003472"
+    text_path = f"{PATH['TEXTS']}/{name}.txt"
+    test(text_path)
     

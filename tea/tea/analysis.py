@@ -1,5 +1,6 @@
 # First Party
 import os
+from os.path import join as pjoin
 from collections import Counter
 import json
 
@@ -8,32 +9,50 @@ import pandas as pd
 import spacy
 
 # Local
-from params import DELIM, PATH, DEFAULT
+from .params import DELIM, PATH, DEFAULT
 
 # Built-in rules
 BLACKLIST_WORDS = {"continue", "cont.", "continued"}
 KEYWORD_POS_TAGS = {'NOUN', 'PROPN', 'VERB', 'ADJ', 'ADV'}
-nlp = spacy.load('en_core_web_sm')
+
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    os.system("python -m spacy download en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm")
 
 # *********************
 # HELPER FUNCTIONS
 # *********************
-def gen_dataset():
-    files = [f for f in os.listdir(PATH['LABELS']) 
-             if os.path.isfile(os.path.join(PATH['LABELS'], f)) 
-             and f.endswith('Extracted.txt')]
+def get_files(path, label, exts):
+    files = []
+    for root, _, filenames in os.walk(path):
+        for filename in filenames:
+            if label not in filename: continue
+            if filename.endswith(tuple(exts)):
+                files.append(os.path.join(root, filename))
+    return files
+
+def gen_dataset(files, label, metric_path: str, label_path: str):
     raw = []
     for file in files:
-        with open(f"{PATH['LABELS']}/{file}", 'r') as f:
+        input_path = pjoin(label_path, file)
+        with open(input_path) as f:
             title = f.readline().lower().strip()
+            if title == "": continue
             text = f.read().lower().strip().replace('"', "'")
             
             end = text.strip().split("\n")[-1]
             end = end if len(end.split(" ")) < DEFAULT["MAX_LINE_SIZE"] and end[-1] != "." else "null"
+
+            # Process filename
+            file = file.replace(f"_{label}", "")
+            file = os.path.basename(file)
+
             raw.append([file, title, end, text])
 
     data = pd.DataFrame(raw, columns=['File', 'Start_Title', 'End_Title', 'Text'])
-    data.to_csv(f"{PATH['METRICS']}/roi_dataset.csv", index=False)
+    data.to_csv(pjoin(metric_path, 'roi_dataset.csv'), index=False)
     return data
 
  # https://saturncloud.io/blog/how-to-detect-and-exclude-outliers-in-a-pandas-dataframe/#:~:text=Interquartile%20Range%20(IQR),-The%20interquartile%20range&text=Any%20data%20point%20outside%20the,75th%20percentiles%20of%20the%20dataset.
@@ -67,6 +86,7 @@ def tally_keywords(df: pd.DataFrame):
         n_words.append(len(title.split(DELIM['WORD'])))
         # Tally Keywords & Counter filters
         counts = Counter()
+
         for token in nlp(title):
             if token.pos_ not in KEYWORD_POS_TAGS: continue
             if token.text in {".", ",", ":", ";", "-"}: continue
@@ -78,7 +98,7 @@ def tally_keywords(df: pd.DataFrame):
     return tallies
 
 
-def score_keywords(tallies: pd.DataFrame):
+def score_keywords(tallies: pd.DataFrame, metric_path):
     total_keyword_tallies = sum(tallies['keywords'], Counter())
     median_n_words = tallies['n_words'].median()
 
@@ -86,7 +106,8 @@ def score_keywords(tallies: pd.DataFrame):
     keywords_scores = {word: [count, round(count/median_n_words, 2)] 
                    for word, count in total_keyword_tallies.items() if count > 1}
 
-    with open(f'{PATH["METRICS"]}/title_keywords.json', 'w') as f: json.dump(keywords_scores, f)
+    input_path = pjoin(metric_path, 'title_keywords.json')
+    with open(input_path, 'w') as f: json.dump(keywords_scores, f)
     return keywords_scores
 
 
@@ -107,12 +128,14 @@ def compute_constants(dataset, tallies):
 # *********************
 # ENTRY FUNCTIONS
 # *********************
-def analysis_entry():
-    dataset = gen_dataset()
+def analysis_entry(labels_path, metric_path, label_word, exts=[".txt"]):
+    print("Analyzing files...")
+    files = get_files(labels_path, label_word, exts)
+    dataset = gen_dataset(files, label_word, metric_path, labels_path)
     tallies = tally_keywords(dataset)
     compute_constants(dataset, tallies)
-    score_keywords(tallies)
+    score_keywords(tallies, metric_path)
 
 if __name__ == '__main__':
-    analysis_entry()
+    analysis_entry("/Users/sharjeelmustafa/Desktop/LABELS", "Extracted", [".txt"])
     

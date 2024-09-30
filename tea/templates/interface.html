@@ -1,0 +1,39 @@
+{% extends 'base.html' %} 
+{% block title %} {{ title }} {% endblock %} 
+{% block content %} 
+<div class="container mb-5 col-lg-6 col-md-8">
+    <h1 class="text-center fw-bold">Text Extraction Automation</h1>
+    <p class="font-monospace text-center">Rule-based Section Approximation</p>
+    <form id="task-form" method="POST" action="" enctype="multipart/form-data">
+        
+        <div class="input-group mb-3 shadow-sm rounded-s">
+            
+            <input id="texts" type="file" class="hidden form-control" name="texts[]" webkitdirectory="" directory="" multiple>
+            <label for="texts" class="form-control">Texts Folder</label>
+        </div>
+
+        <div class="input-group mb-3 shadow-sm rounded">
+            <input id="labels" type="file" class="form-control" name="labels[]" webkitdirectory="" directory="" multiple>
+            <label for="labels" class="form-control">Labels Folder</label>
+        </div>
+
+        <div class="input-group mb-3 shadow-sm rounded">
+            <!-- Input text folder -->
+            <span class="input-group-text" style="min-width: 120px;">Label Word</span>
+            <input type="text" class="form-control" placeholder="Enter Label Keyword" name="label_word">
+        </div>
+
+        <div class="input-group mb-3 shadow-sm rounded">
+            <!-- Input text folder -->
+            <span class="input-group-text" style="min-width: 120px;">Extensions</span>
+            <input type="text" class="form-control" placeholder="Enter Allowed Extensions, Seperated by Spaces" name="extensions">
+        </div>
+        <button class="btn btn-dark mb-3 mt-3 shadow-sm rounded col-12" name="submit" type="submit">&rarr;</button>
+    </form>
+    <p class="">
+        Task queue is in development, the interface will be unresponsive when computation begins. As such if the 
+        connection timesout, please try again with a smaller number of files. For reference, running on 150 sec-html
+        files takes about 45-60s.
+     </p>
+</div>
+{% endblock %}
