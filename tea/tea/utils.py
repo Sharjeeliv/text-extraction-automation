@@ -1,6 +1,5 @@
 import time
 from typing import List
-from sklearn.metrics import f1_score, precision_score, recall_score, accuracy_score
 import matplotlib.pyplot as plt
 
 import pandas as pd

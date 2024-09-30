@@ -1,14 +1,12 @@
+# First-party Imports
 import re
 import os
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-
+# Local Imports
 from .params import PATH
 
 R_SENTENCE = r"^(\w+\s\w+\s\w+\s?)((\w+|-)\s?)*"
 TESTING = False
-
 
 # *********************
 # HELPER FUNCTIONS
@@ -21,7 +19,6 @@ def get_text(file1: str, file2: str):
         print(f"ERROR - File not found: {e}")
         return -1
     return text1, text2
-
 
 # *********************
 # MAIN SIMILARITY METHOD
@@ -76,47 +73,6 @@ def print_excess(label: str, pred: str):
 def print_tokenization(lwords):
     print(f"Words-l: {len(lwords)}")
     for n, i in enumerate(lwords): print(f"{n:3}: {i[:64]}...")
-
-
-# *********************
-# TOKEN BASED METHODS
-# *********************
-def jaccard_similarity(label: str, pred: str):
-    
-    text1, text2 = get_text(label, pred)
-    words1 = set(text1.lower().split(' '))
-    words2 = set(text2.lower().split(' '))
-
-    intersection = len(words1.intersection(words2))
-    union = len(words1.union(words2))
-
-    return intersection / union
-
-def sorenson_dice_similarity(label: str, pred: str):
-
-    text1, text2 = get_text(label, pred)
-    words1 = set(text1.lower().split(' '))
-    words2 = set(text2.lower().split(' '))
-
-    intersection = len(words1.intersection(words2))
-    return 2 * intersection / (len(words1) + len(words2))
-
-def cos_similarity(label: str, pred: str):
-    
-    text1, text2 = get_text(label, pred)
-    vectorizer = TfidfVectorizer()
-    tfidf = vectorizer.fit_transform([text1, text2])
-    return cosine_similarity(tfidf)[0][1]
-
-def ngram_similarity(label: str, pred: str, n: int=3):
-    
-    text1, text2 = get_text(label, pred)
-    ngram1 = [text1[i:i+n] for i in range(len(text1)-n+1)]
-    ngram2 = [text2[i:i+n] for i in range(len(text2)-n+1)]
-    
-    intersection = len(set(ngram1).intersection(set(ngram2)))
-    union = len(set(ngram1).union(set(ngram2)))
-    return intersection / union
 
 if __name__ == "__main__":
     TESTING = True
