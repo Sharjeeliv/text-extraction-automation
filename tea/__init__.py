@@ -1,12 +1,13 @@
 # Third-party Imports
 from flask import Flask
+import os
 
 from .tea.params import PATH, init_paths
 
 
 class DefaultConfig:
     UPLOAD_FOLDER = PATH['TEXTS']
-    SECRET_KEY = "abcd"
+    SECRET_KEY = os.environ.get('TEA_SECRET_KEY')
 
 def create_app(config=None): 
     app = Flask(__name__)
