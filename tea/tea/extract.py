@@ -215,14 +215,14 @@ def extractor(file_path: str, metric_path: str, label_path: str, output_path: st
 # MAIN FUNCTION
 # *********************
 args: argparse.Namespace
-def extraction_entry(texts_path, metric_path, label_path, output_path, label, exts=['.txt'], log=False, test=True):
+def extraction_entry(texts_path, metric_path, label_path, output_path, label, mask, exts=['.txt'], log=False, test=True):
     print("Extracting files...")
     # Setup and retrieve arguments
     global LOG_MODE
     LOG_MODE = log
 
     # Parse, prepare and retrieve files
-    files = get_files(texts_path, label=label, exts=exts)
+    files = get_files(texts_path, label=label, exts=exts, mask=mask)
     # Extract, save, and compute similarity
     manager = Manager()
     result_scores = manager.list()

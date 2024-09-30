@@ -120,12 +120,12 @@ def is_html(path):
     return False
 
 
-def get_files(path, label, exts):
+def get_files(path, label, exts, mask):
     files = []
     for root, _, filenames in os.walk(path):
         for filename in filenames:
             if label in filename: continue
-            if filename.endswith(tuple(exts)):
+            if filename.endswith(tuple(exts)) and os.path.splitext(filename)[0] in mask:
                 files.append(os.path.join(root, filename))
     return files
 
@@ -134,9 +134,9 @@ def get_files(path, label, exts):
 # MAIN FUNCTIONS
 # *********************
 @time_execution
-def parse_entry(input_path:str, output_path: str, label=[], ext=[]):
+def parse_entry(input_path:str, output_path: str, mask=[], label=[], ext=[]):
     print("Parsing files...")
-    files = get_files(input_path, label, ext)
+    files = get_files(input_path, label, ext, mask)
     parse_files(files, output_path)
 
 

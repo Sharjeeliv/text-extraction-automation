@@ -68,7 +68,7 @@ def main():
     return 0
 
 @time_execution
-def extract_text(unique_id, label_word, ext=[], analyze=False, log=False, test=False):
+def extract_text(unique_id, label_word, mask, ext=[], analyze=False, log=False, test=False):
 
     params_init_paths()
 
@@ -94,9 +94,9 @@ def extract_text(unique_id, label_word, ext=[], analyze=False, log=False, test=F
 
         )
     
-    parse_entry(input_path=text_path, output_path=text_path, label=label_word, ext=ext)
+    parse_entry(input_path=text_path, output_path=text_path, mask=mask, label=label_word, ext=ext)
     if analyze or metrics_empty(metric_path): analysis_entry(label_path, metric_path, label_word)
-    extraction_entry(text_path, metric_path, label_path, output_path, label_word, exts=[".txt"], log=log, test=test)
+    extraction_entry(text_path, metric_path, label_path, output_path, label_word, mask=mask, exts=[".txt"], log=log, test=test)
 
     return
     # init_paths(args)
