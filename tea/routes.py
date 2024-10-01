@@ -143,6 +143,9 @@ def save_files(files, path, exts):
     if files is None: return -1
     for file in files:
         if os.path.splitext(file.filename)[1] not in exts: continue
-        full_path = os.path.join(path, os.path.split(file.filename)[-1])
+        base_filename = os.path.basename(file.filename)
+        if base_filename == '': continue
+        if base_filename[0] == '.': continue
+        full_path = os.path.join(path,  base_filename)
         open(full_path, 'w').write(file.read().decode('utf-8'))
     return 0
