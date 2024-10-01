@@ -139,36 +139,10 @@ def get_unique_user_path(base_path, unique_id: str):
     os.makedirs(user_path, exist_ok=True)
     return user_path
 
-# def zip_file(path, unique_id):
-#     zip_filename = f"{unique_id}-results.zip"
-#     zip_path = os.path.join(path, zip_filename)
-#     zipf = zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED)
-#     for root, _, files in os.walk(path):
-#         for file in files:
-#             if file == zip_filename: continue
-#             zipf.write(os.path.join(root, file), file)
-#     zipf.close()
-#     # url_for('main.download', filename=f'{id}-results.zip', unique_id=id)
-#     return zip_filename
-
 def save_files(files, path, exts):
     if files is None: return -1
     for file in files:
         if os.path.splitext(file.filename)[1] not in exts: continue
-        full_path = os.path.join(path, file.filename)
+        full_path = os.path.join(path, os.path.split(file.filename)[-1])
         open(full_path, 'w').write(file.read().decode('utf-8'))
     return 0
-
-# def delete_files(files, path):
-#     for file in files:
-#         file_name = file if isinstance(file, str) else file.filename
-#         file_path = os.path.join(path, file_name)
-#         if os.path.exists(file_path):
-#             os.remove(os.path.join(path, file_name))
-#         txt_file = os.path.splitext(file_path)[0] + '.txt'
-#         if os.path.exists(txt_file): os.remove(txt_file)
-#     return 0
-
-# def delete_folder(path):
-#     if os.path.isdir(path): os.rmdir(path)
-#     return 0
