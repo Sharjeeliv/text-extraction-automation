@@ -1,9 +1,7 @@
 
 services:
   web:
-    build: .
-    ports:
-      - "5001:5000"
+    image: sharjeeliv/tea:latest
     volumes:
       - ./tea/data:/tea/tea/data
     depends_on:
@@ -11,9 +9,11 @@ services:
     environment:
       - TEA_SECRET_KEY="yummy"
       - REDIS_URL=redis://redis:6379
+    ports:
+      - "5001:5000"
   
   worker:
-    build: .
+    image: sharjeeliv/tea:latest
     volumes:
       - ./tea/data:/tea/tea/data
     command: rq worker -u redis://redis:6379
