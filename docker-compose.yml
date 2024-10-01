@@ -1,0 +1,26 @@
+
+services:
+  web:
+    build: .
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./tea/data:/tea/tea/data
+    depends_on:
+      - redis
+    environment:
+      - TEA_SECRET_KEY="yummy"
+      - REDIS_URL=redis://redis:6379
+  
+  worker:
+    build: .
+    volumes:
+      - ./tea/data:/tea/tea/data
+    command: rq worker -u redis://redis:6379
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7.4.0
+    ports:
+      - "6379:6379"

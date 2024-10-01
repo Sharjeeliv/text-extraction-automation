@@ -20,7 +20,7 @@ from .tasks import text_extraction, delete_files, delete_folder
 # SETUP & CONFIG
 # *********************
 main = Blueprint('main', __name__)
-r = redis.Redis()
+r = redis.Redis(host='redis')
 q = Queue(connection=r, default_timeout=3600)
 
 # *********************

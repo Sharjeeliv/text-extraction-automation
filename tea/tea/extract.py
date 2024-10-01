@@ -251,7 +251,7 @@ def test(file: str):
 
 
 def test_title(title: str):
-    keyword_dataset =  pd.read_json(f'{PATH['METRICS']}/agg_title_metrics.json')
+    keyword_dataset =  pd.read_json(f"{PATH['METRICS']}/agg_title_metrics.json")
     print(get_title(title, keyword_dataset))
 
 if __name__ == "__main__":

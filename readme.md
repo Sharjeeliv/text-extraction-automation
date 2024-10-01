@@ -15,7 +15,7 @@ Presently it lacks negative reinforcement and as such can't handle files that do
 1. **Clone the repository**
 
     ```bash
-    git clone https://github.com/Sharjeeliv/GNN-Platform
+    git clone https://github.com/Sharjeeliv/text-extraction-automation.git
     ```
 
 2. **Install Python3 if needed**
